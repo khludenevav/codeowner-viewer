@@ -7,7 +7,7 @@
     "distDir": "../build"
   },
   "package": {
-    "productName": "codeowners-viewer",
+    "productName": "Codeowners viewer",
     "version": "0.1.0"
   },
   "tauri": {
