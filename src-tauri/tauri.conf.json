@@ -26,9 +26,15 @@
       },
       "shell": {
         "all": false,
-        "execute": false,
+        "execute": true,
         "open": true,
-        "scope": [],
+        "scope": [
+          {
+            "name": "run-git-command",
+            "cmd": "git",
+            "args": true
+          }
+        ],
         "sidecar": false
       },
       "fs": {

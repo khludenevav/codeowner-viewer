@@ -2,7 +2,7 @@ import { readTextFile, writeTextFile, exists, BaseDirectory, createDir } from '@
 
 export type Repositories = {
   /** Absolute path to repository */
-  repoPart: string;
+  repoPath: string;
   /** Relative path to codeowners from repoPath */
   codeowners: string;
 };
