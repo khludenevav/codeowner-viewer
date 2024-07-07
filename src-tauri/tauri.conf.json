@@ -12,6 +12,9 @@
   },
   "tauri": {
     "allowlist": {
+      "path":{
+        "all": true
+      },
       "all": false,
       "shell": {
         "all": false,
@@ -36,7 +39,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "com.khludenev.codeowners-viewer",
       "longDescription": "Desktop application for viewing affected codeowners for particular Github PR",
       "macOS": {
         "entitlements": null,
