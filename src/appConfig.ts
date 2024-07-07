@@ -13,15 +13,17 @@ export type AppConfig = {
 
 const CONFIG_FILE_NAME = 'config.json';
 
+export const DEFAULT_APP_CONFIG: AppConfig = {
+  repositories: [],
+};
+
 export async function readAppConfig(): Promise<AppConfig> {
   let config: AppConfig;
   if (await exists(CONFIG_FILE_NAME, { dir: BaseDirectory.AppConfig })) {
     const configAsJson = await readTextFile(CONFIG_FILE_NAME, { dir: BaseDirectory.AppConfig });
     config = JSON.parse(configAsJson);
   } else {
-    config = {
-      repositories: [],
-    };
+    config = DEFAULT_APP_CONFIG;
     await createDir('', { dir: BaseDirectory.AppConfig, recursive: true });
     await writeTextFile(CONFIG_FILE_NAME, JSON.stringify(config, null, 2), {
       dir: BaseDirectory.AppConfig,
