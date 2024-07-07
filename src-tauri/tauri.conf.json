@@ -12,7 +12,7 @@
   },
   "tauri": {
     "allowlist": {
-      "path":{
+      "path": {
         "all": true
       },
       "all": false,
@@ -22,6 +22,19 @@
         "open": true,
         "scope": [],
         "sidecar": false
+      },
+      "fs": {
+        "all": false,
+        "copyFile": false,
+        "createDir": true,
+        "exists": true,
+        "readDir": false,
+        "readFile": true,
+        "removeDir": false,
+        "removeFile": false,
+        "renameFile": false,
+        "scope": ["$DATA/*", "$APPCONFIG/*"],
+        "writeFile": true
       }
     },
     "bundle": {

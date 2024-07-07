@@ -1,3 +1,13 @@
+## Assert
+
+- Import from repo/public: `import viteLogo from '/vite.svg';`
+- Import from repo/src/assets: `import reactLogo from './assets/react.svg';`
+
+## Allowlist
+
+tauri allow list justification:
+`$DATA/*` in the `"scope": ["$DATA/*", "$APPCONFIG/*"],` added to be able to make directory for application. By
+`await createDir('', { dir: BaseDirectory.AppConfig, recursive: true });`
 
 ## Expanding the ESLint configuration
 
@@ -14,7 +24,7 @@ export default {
     project: ['./tsconfig.json', './tsconfig.node.json'],
     tsconfigRootDir: __dirname,
   },
-}
+};
 ```
 
 - Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
