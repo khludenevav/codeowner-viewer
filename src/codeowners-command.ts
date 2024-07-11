@@ -1,6 +1,5 @@
 import { Command } from '@tauri-apps/api/shell';
 import { getOwnerTeam, parseCodeowners } from './codeowners-utils';
-import { path } from '@tauri-apps/api';
 import { Repositories } from './appConfig';
 import { invoke } from '@tauri-apps/api';
 
@@ -20,10 +19,11 @@ export async function getBranchDifference(
   }
   const lines = output.stdout.split('\n');
 
-  const fullCodeownersFilePath = await path.join(repository.repoPath, repository.codeowners);
   const codeownersFileContent: string = await invoke('get_codeowners_content', {
-    codeownersPath: fullCodeownersFilePath,
+    branch,
+    absRepoPath: repository.repoPath,
   });
+
   const codeowners = parseCodeowners(codeownersFileContent);
 
   const owners = new Map<string, string[]>();
