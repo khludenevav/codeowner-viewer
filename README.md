@@ -1,3 +1,12 @@
+# Installation
+
+Download latest dmg file (like Codeowners.viewer_0.1.3_aarch64.dmg) from releases page
+from https://github.com/khludenevav/codeowner-viewer/releases
+
+Double click it and install to applications. Application is not signed, so you have to exclude it from quarantine by executing `xattr -dr com.apple.quarantine /Applications/Codeowners\ viewer.app`. Now you can use it.
+
+More info about "pay Apple 99$" per year here: https://disable-gatekeeper.github.io/
+
 ## Assert
 
 - Import from repo/public: `import viteLogo from '/vite.svg';`
