@@ -98,7 +98,7 @@ function App() {
         <button onClick={removeRepository}>Remove repository</button>
         <button onClick={resetEntireAppConfig}>Reset entire app config</button>
       </div>
-      <input style={{ minWidth: '300px' }} type='text' ref={branchInputRef}></input>
+      <input autoFocus style={{ minWidth: '300px' }} type='text' ref={branchInputRef}></input>
       <button onClick={onBranchDiff}>onBranchDiff</button>
       <hr />
       {isLoading && <div>Finding codeowners...</div>}
