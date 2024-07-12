@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "build-app": "tauri dev",
     "release": "tauri build",
-    "release-aarch64": "tauri build --target aarch64-apple-darwin",
+    "release-aarch64": "CI=true tauri build --target aarch64-apple-darwin",
     "release-universal": "tauri build --target universal-apple-darwin"
   },
   "dependencies": {

@@ -92,7 +92,6 @@ function App() {
 
   return (
     <>
-      <h3>Codeowners viewer</h3>
       <pre>{JSON.stringify(appConfig, null, 2)}</pre>
       <div>
         <button onClick={addRepository}>Add repository</button>
