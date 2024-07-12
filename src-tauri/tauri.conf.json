@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "Codeowners viewer",
-    "version": "0.1.5"
+    "version": "0.1.6"
   },
   "tauri": {
     "allowlist": {
@@ -89,7 +89,9 @@
     },
     "updater": {
       "active": true,
-      "endpoints": ["https://releases.myapp.com/{{target}}/{{arch}}/{{current_version}}"],
+      "endpoints": [
+        "https://github.com/khludenevav/codeowner-viewer/releases/latest/download/latest.json"
+      ],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU4QkI5NkFFRUY5OTgxRjkKUldUNWdabnZycGE3NksvcWJrNGwvY3VDSHlaSVlYSzRhdUxOeTZYbU8vUVp4ZWhDTGpsUy9WRXMK"
     },
