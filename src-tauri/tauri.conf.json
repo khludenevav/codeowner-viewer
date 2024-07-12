@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "Codeowners viewer",
-    "version": "0.1.7"
+    "version": "0.1.8"
   },
   "tauri": {
     "allowlist": {
@@ -18,7 +18,7 @@
       "all": false,
       "dialog": {
         "all": false,
-        "ask": false,
+        "ask": true,
         "confirm": false,
         "message": false,
         "open": true,
