@@ -100,7 +100,9 @@ function App() {
       </div>
       <div style={{ height: '16px' }} />
       <input autoFocus style={{ minWidth: '300px' }} type='text' ref={branchInputRef}></input>
-      <button onClick={onBranchDiff}>onBranchDiff</button>
+      <button style={{ marginLeft: '8px' }} onClick={onBranchDiff}>
+        onBranchDiff
+      </button>
       <hr />
       {isLoading && <div>Finding codeowners...</div>}
       {lastOwners && !isLoading && (
