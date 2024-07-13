@@ -6,6 +6,7 @@ import { type AppConfig } from '../../../app-config/app-config';
 import { getBranchDifference } from '../../../utils/codeowners-command';
 import { useAppConfig } from '../../../app-config/useAppConfig';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
@@ -45,12 +46,11 @@ function Codeowners() {
 
   return (
     <>
-      <input autoFocus style={{ minWidth: '300px' }} type='text' ref={branchInputRef}></input>
-      <Button className='left-2' onClick={onBranchDiff}>
+      <Input autoFocus className='max-w-80' type='text' ref={branchInputRef} />
+      <Button className='ml-2' onClick={onBranchDiff}>
         Get branch diff
       </Button>
 
-      <hr />
       {isLoading && <div>Finding codeowners...</div>}
       {lastOwners && !isLoading && (
         <pre>{JSON.stringify(Object.fromEntries(lastOwners.entries()), null, 2)}</pre>
