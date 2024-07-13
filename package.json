@@ -17,6 +17,7 @@
     "release-universal": "tauri build --target universal-apple-darwin"
   },
   "dependencies": {
+    "@radix-ui/react-navigation-menu": "^1.2.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@tanstack/react-query": "^5.51.1",
     "@tanstack/react-router": "^1.45.0",
