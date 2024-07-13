@@ -6,6 +6,7 @@ import { DEFAULT_APP_CONFIG } from '../app-config/app-config';
 import { open } from '@tauri-apps/api/dialog';
 import { path } from '@tauri-apps/api';
 import { useAppConfig, useUpdateAppConfig } from '../app-config/useAppConfig';
+import { Button } from '@/components/ui/button';
 
 export const Route = createFileRoute('/settings')({
   component: () => <Settings />,
@@ -75,10 +76,10 @@ function Settings() {
     <>
       <div>Config:</div>
       <pre>{JSON.stringify(appConfigResponse.data, null, 2)}</pre>
-      <div>
-        <button onClick={addRepository}>Add repository</button>
-        <button onClick={removeRepository}>Remove repository</button>
-        <button onClick={resetEntireAppConfig}>Reset entire app config</button>
+      <div className='flex gap-2'>
+        <Button onClick={addRepository}>Add repository</Button>
+        <Button onClick={removeRepository}>Remove repository</Button>
+        <Button onClick={resetEntireAppConfig}>Reset entire app config</Button>
       </div>
     </>
   );

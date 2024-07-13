@@ -7,6 +7,17 @@ Double click it and install to applications. Application is not signed, so you h
 
 More info about "pay Apple 99$" per year here: https://disable-gatekeeper.github.io/
 
+# Libraries
+
+## Frontend
+
+- Main framework: vite
+- File-system router: @tanstack/react-router
+- State manager/cache: tanstack/react-query
+- Css framework: tailwind
+- Headless UI components library: https://ui.shadcn.com/
+- Icon library: lucide-react
+
 ## Assert
 
 - Import from repo/public: `import viteLogo from '/vite.svg';`

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
+import path from 'path';
 
 // vitest automatically sets NODE_ENV to 'test' when running tests
 const isTest = process.env.NODE_ENV === 'test';
@@ -8,6 +9,12 @@ const isTest = process.env.NODE_ENV === 'test';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [!isTest && TanStackRouterVite(), react()],
+  // Required for ui.shadcn.com
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   // prevent vite from obscuring rust errors
   clearScreen: false,
   // Tauri expects a fixed port, fail if that port is not available
