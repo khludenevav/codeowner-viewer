@@ -1,30 +1,25 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
-import {
-  type AppConfig,
-  readAppConfig,
-  writeAppConfig,
-  DEFAULT_APP_CONFIG,
-} from '../app-config/app-config';
+import { DEFAULT_APP_CONFIG } from '../app-config/app-config';
 import { open } from '@tauri-apps/api/dialog';
 import { path } from '@tauri-apps/api';
+import { useAppConfig, useUpdateAppConfig } from '../app-config/useAppConfig';
 
 export const Route = createFileRoute('/settings')({
   component: () => <Settings />,
 });
 
 function Settings() {
-  const [error, setError] = useState<string>('');
-  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
-  useEffect(() => {
-    readAppConfig()
-      .then(config => setAppConfig(config))
-      .catch(error => setError(error));
-  }, []);
+  const appConfigResponse = useAppConfig();
+  const appConfigUpdate = useUpdateAppConfig();
 
   const addRepository = useCallback(async () => {
+    if (appConfigResponse.status !== 'success') {
+      return;
+    }
+
     const selectedDirectory = await open({
       title: 'Select repository directory',
       defaultPath: await path.homeDir(),
@@ -34,51 +29,52 @@ function Settings() {
     if (!selectedDirectory || Array.isArray(selectedDirectory)) {
       return;
     }
-    setAppConfig(prevAppConfig => {
-      const newAppConfig = {
-        ...prevAppConfig,
+    appConfigUpdate.mutate({
+      appConfig: {
+        ...appConfigResponse.data,
         repositories: [
-          ...prevAppConfig!.repositories,
+          ...appConfigResponse.data.repositories,
           { repoPath: selectedDirectory, codeowners: 'CODEOWNERS' },
         ],
-      };
-      writeAppConfig(newAppConfig);
-      return newAppConfig;
+      },
     });
-  }, []);
+  }, [appConfigResponse.data, appConfigResponse.status, appConfigUpdate]);
 
   const removeRepository = useCallback(async () => {
-    setAppConfig(prevAppConfig => {
-      const repositories = prevAppConfig!.repositories;
-      repositories.pop();
-      const newAppConfig = {
-        ...prevAppConfig,
-        repositories: repositories,
-      };
-      writeAppConfig(newAppConfig);
-      return newAppConfig;
+    if (appConfigResponse.status !== 'success') {
+      return;
+    }
+    const repositories = [...appConfigResponse.data.repositories];
+    repositories.pop();
+    appConfigUpdate.mutate({
+      appConfig: {
+        ...appConfigResponse.data,
+        repositories,
+      },
     });
-  }, []);
+  }, [appConfigResponse.data, appConfigResponse.status, appConfigUpdate]);
 
   const resetEntireAppConfig = useCallback(async () => {
-    setAppConfig(() => {
-      const newAppConfig = DEFAULT_APP_CONFIG;
-      writeAppConfig(newAppConfig);
-      return newAppConfig;
+    if (appConfigResponse.status !== 'success') {
+      return;
+    }
+    appConfigUpdate.mutate({
+      appConfig: DEFAULT_APP_CONFIG,
     });
-  }, []);
+  }, [appConfigResponse.status, appConfigUpdate]);
 
-  if (error) {
-    return `Error: ${error}`;
+  if (appConfigResponse.status === 'error') {
+    return `Error: ${appConfigResponse.error}`;
   }
 
-  if (!appConfig) {
+  if (appConfigResponse.status === 'pending') {
     return 'Loading app config...';
   }
 
   return (
     <>
-      <pre>{JSON.stringify(appConfig, null, 2)}</pre>
+      <div>Config:</div>
+      <pre>{JSON.stringify(appConfigResponse.data, null, 2)}</pre>
       <div>
         <button onClick={addRepository}>Add repository</button>
         <button onClick={removeRepository}>Remove repository</button>

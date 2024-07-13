@@ -12,7 +12,6 @@
 
 import { Route as rootRoute } from './routes/~__root'
 import { Route as SettingsImport } from './routes/~settings'
-import { Route as RepositoriesImport } from './routes/~repositories'
 import { Route as IndexImport } from './routes/~index'
 import { Route as RepositoriesRepositoryIdCodeownersImport } from './routes/~repositories/~$repositoryId/~codeowners'
 
@@ -23,11 +22,6 @@ const SettingsRoute = SettingsImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const RepositoriesRoute = RepositoriesImport.update({
-  path: '/repositories',
-  getParentRoute: () => rootRoute,
-} as any)
-
 const IndexRoute = IndexImport.update({
   path: '/',
   getParentRoute: () => rootRoute,
@@ -35,8 +29,8 @@ const IndexRoute = IndexImport.update({
 
 const RepositoriesRepositoryIdCodeownersRoute =
   RepositoriesRepositoryIdCodeownersImport.update({
-    path: '/$repositoryId/codeowners',
-    getParentRoute: () => RepositoriesRoute,
+    path: '/repositories/$repositoryId/codeowners',
+    getParentRoute: () => rootRoute,
   } as any)
 
 // Populate the FileRoutesByPath interface
@@ -50,13 +44,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/repositories': {
-      id: '/repositories'
-      path: '/repositories'
-      fullPath: '/repositories'
-      preLoaderRoute: typeof RepositoriesImport
-      parentRoute: typeof rootRoute
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -66,10 +53,10 @@ declare module '@tanstack/react-router' {
     }
     '/repositories/$repositoryId/codeowners': {
       id: '/repositories/$repositoryId/codeowners'
-      path: '/$repositoryId/codeowners'
+      path: '/repositories/$repositoryId/codeowners'
       fullPath: '/repositories/$repositoryId/codeowners'
       preLoaderRoute: typeof RepositoriesRepositoryIdCodeownersImport
-      parentRoute: typeof RepositoriesImport
+      parentRoute: typeof rootRoute
     }
   }
 }
@@ -78,10 +65,8 @@ declare module '@tanstack/react-router' {
 
 export const routeTree = rootRoute.addChildren({
   IndexRoute,
-  RepositoriesRoute: RepositoriesRoute.addChildren({
-    RepositoriesRepositoryIdCodeownersRoute,
-  }),
   SettingsRoute,
+  RepositoriesRepositoryIdCodeownersRoute,
 })
 
 /* prettier-ignore-end */
@@ -93,25 +78,18 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "~__root.tsx",
       "children": [
         "/",
-        "/repositories",
-        "/settings"
+        "/settings",
+        "/repositories/$repositoryId/codeowners"
       ]
     },
     "/": {
       "filePath": "~index.tsx"
     },
-    "/repositories": {
-      "filePath": "~repositories.tsx",
-      "children": [
-        "/repositories/$repositoryId/codeowners"
-      ]
-    },
     "/settings": {
       "filePath": "~settings.tsx"
     },
     "/repositories/$repositoryId/codeowners": {
-      "filePath": "~repositories/~$repositoryId/~codeowners.tsx",
-      "parent": "/repositories"
+      "filePath": "~repositories/~$repositoryId/~codeowners.tsx"
     }
   }
 }

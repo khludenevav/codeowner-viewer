@@ -9,12 +9,13 @@ import { useAppConfig } from '../../../app-config/useAppConfig';
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
 });
-
 function Codeowners() {
+  console.log('co');
   const branchInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState<boolean>();
   const [lastOwners, setLastOwners] = useState<Map<string, string[]> | null>(null);
-  const appConfig: AppConfig = useAppConfig();
+  const appConfigResponse = useAppConfig();
+  const appConfig: AppConfig | undefined = appConfigResponse.data;
 
   const onBranchDiff = useCallback(async () => {
     const branch = branchInputRef.current?.value?.trim();

@@ -6,8 +6,12 @@ export const Route = createFileRoute('/')({
 });
 
 function Index() {
-  const appConfig = useAppConfig();
-  if (appConfig.repositories.length > 0) {
+  const appConfigResponse = useAppConfig();
+  if (appConfigResponse.status !== 'success') {
+    return <div>Loading config...</div>;
+  }
+
+  if (appConfigResponse.data.repositories.length > 0) {
     return (
       <Navigate to='/repositories/$repositoryId/codeowners' params={{ repositoryId: 'any' }} />
     );
