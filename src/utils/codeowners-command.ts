@@ -1,6 +1,6 @@
 import { Command } from '@tauri-apps/api/shell';
 import { getOwnerTeam, parseCodeowners } from './codeowners-utils';
-import { Repositories } from './appConfig';
+import { Repositories } from '../app-config/app-config';
 import { invoke } from '@tauri-apps/api';
 
 export async function getBranchDifference(
