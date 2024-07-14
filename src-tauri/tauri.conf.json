@@ -67,7 +67,7 @@
         "icons/icon.ico"
       ],
       "identifier": "com.khludenev.codeowners-viewer",
-      "longDescription": "Desktop application for viewing affected codeowners for particular Github PR",
+      "longDescription": "Desktop application for viewing codeowners for changed files for particular git branch",
       "macOS": {
         "entitlements": null,
         "exceptionDomain": "",
@@ -76,7 +76,7 @@
         "signingIdentity": null
       },
       "resources": [],
-      "shortDescription": "View affected codeowners for Github PR",
+      "shortDescription": "View codeowners for changed files for git branch",
       "targets": "all",
       "windows": {
         "certificateThumbprint": null,
