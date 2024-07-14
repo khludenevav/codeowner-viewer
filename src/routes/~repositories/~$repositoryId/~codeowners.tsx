@@ -82,10 +82,12 @@ function Codeowners() {
 
       {isLoading && <div>Finding codeowners...</div>}
       {lastOwners && !isLoading && (
-        <div className='flex flex-col gap4'>
+        <div className='flex flex-col gap-2'>
           <span>Codeowners for changed files:</span>
           <ScrollArea className='w-full p-4 rounded-md border'>
-            <pre>{JSON.stringify(Object.fromEntries(lastOwners.entries()), null, 2)}</pre>
+            <pre className='text-sm text-neutral-900 dark:text-neutral-400'>
+              {JSON.stringify(Object.fromEntries(lastOwners.entries()), null, 2)}
+            </pre>
           </ScrollArea>
         </div>
       )}
