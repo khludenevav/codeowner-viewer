@@ -27,7 +27,7 @@ if (!rootElement.innerHTML) {
   root.render(
     <React.StrictMode>
       <QueryClientProvider client={QUERY_CLIENT}>
-        <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
+        <ThemeProvider>
           <TooltipProvider>
             <RouterProvider router={router} />
           </TooltipProvider>

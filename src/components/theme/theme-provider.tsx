@@ -1,16 +1,15 @@
-import { createContext, useEffect, useState } from 'react';
-
-type Theme = 'dark' | 'light' | 'system';
+import { ColorTheme, DEFAULT_COLOR_THEME } from '@/app-config/app-config';
+import { useAppConfig, useUpdateAppConfig } from '@/app-config/useAppConfig';
+import { createContext, useEffect, useMemo } from 'react';
 
 type ThemeProviderProps = {
   children: React.ReactNode;
-  defaultTheme?: Theme;
-  storageKey?: string;
+  defaultTheme?: ColorTheme;
 };
 
 type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  theme: ColorTheme;
+  setTheme: (theme: ColorTheme) => void;
 };
 
 const initialState: ThemeProviderState = {
@@ -20,17 +19,19 @@ const initialState: ThemeProviderState = {
 
 export const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
-export function ThemeProvider({
-  children,
-  defaultTheme = 'system',
-  storageKey = 'vite-ui-theme',
-  ...props
-}: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
-  );
+export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  const appConfigResponse = useAppConfig();
+  const appConfigUpdate = useUpdateAppConfig();
+
+  const theme =
+    appConfigResponse.status === 'success'
+      ? appConfigResponse.data.theme.colorTheme
+      : DEFAULT_COLOR_THEME;
 
   useEffect(() => {
+    if (appConfigResponse.status !== 'success') {
+      return;
+    }
     const root = window.document.documentElement;
 
     root.classList.remove('light', 'dark');
@@ -41,19 +42,29 @@ export function ThemeProvider({
         : 'light';
 
       root.classList.add(systemTheme);
-      return;
+    } else {
+      root.classList.add(theme);
     }
+  }, [appConfigResponse.status, theme]);
 
-    root.classList.add(theme);
-  }, [theme]);
-
-  const value = {
-    theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
-    },
-  };
+  const value = useMemo(() => {
+    return {
+      theme,
+      setTheme: (colorTheme: ColorTheme) => {
+        if (appConfigResponse.status === 'success') {
+          appConfigUpdate.mutate({
+            appConfig: {
+              ...appConfigResponse.data,
+              theme: {
+                ...appConfigResponse.data.theme,
+                colorTheme,
+              },
+            },
+          });
+        }
+      },
+    };
+  }, [appConfigResponse.data, appConfigResponse.status, appConfigUpdate, theme]);
 
   return (
     <ThemeProviderContext.Provider {...props} value={value}>
