@@ -61,10 +61,10 @@ function Codeowners() {
         Enter a local or remote branch name to get the codeowners for changed files comparing with
         'main' branch. Type HEAD to compare current branch with main.
       </span>
-      <div className='flex gap-2'>
+      <div className='flex gap-2 flex-wrap md:flex-nowrap'>
         <Input
           autoFocus
-          className='max-w-96'
+          className='max-w-96 min-w-32'
           type='text'
           ref={branchInputRef}
           placeholder='[origin/][your_name/]branch_name.'

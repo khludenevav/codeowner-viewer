@@ -92,7 +92,7 @@ function Settings() {
     <div className='flex flex-col gap-4'>
       <div>Application config:</div>
       <pre>{JSON.stringify(appConfigResponse.data, null, 2)}</pre>
-      <div className='flex gap-2'>
+      <div className='flex gap-2 flex-wrap md:flex-nowrap'>
         <Button onClick={addRepository} size='sm'>
           Add repository
         </Button>
