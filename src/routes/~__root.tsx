@@ -1,6 +1,15 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router';
-import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import { HeaderNavigationMenu } from './HeaderNavigationMenu';
+import React from 'react';
+
+const TanStackRouterDevtools =
+  process.env.NODE_ENV === 'production'
+    ? () => null
+    : React.lazy(() =>
+        import('@tanstack/router-devtools').then(res => ({
+          default: res.TanStackRouterDevtools,
+        })),
+      );
 
 export const Route = createRootRoute({
   component: () => (
@@ -11,7 +20,9 @@ export const Route = createRootRoute({
       <main className='mx-6 mb-6'>
         <Outlet />
       </main>
-      <TanStackRouterDevtools />
+      <React.Suspense>
+        <TanStackRouterDevtools />
+      </React.Suspense>
     </>
   ),
 });
