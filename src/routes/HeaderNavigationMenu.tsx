@@ -12,7 +12,7 @@ import { SettingsIcon } from 'lucide-react';
 export const HeaderNavigationMenu = () => {
   const matchRoute = useMatchRoute();
   return (
-    <NavigationMenu>
+    <NavigationMenu className='pb-2 border-b'>
       <NavigationMenuList>
         <NavigationMenuItem>
           <NavigationMenuLink

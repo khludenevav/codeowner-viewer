@@ -73,14 +73,20 @@ function Settings() {
   }
 
   return (
-    <>
-      <div>Config:</div>
+    <div className='flex flex-col gap-4'>
+      <div>Application config:</div>
       <pre>{JSON.stringify(appConfigResponse.data, null, 2)}</pre>
       <div className='flex gap-2'>
-        <Button onClick={addRepository}>Add repository</Button>
-        <Button onClick={removeRepository}>Remove repository</Button>
-        <Button onClick={resetEntireAppConfig}>Reset entire app config</Button>
+        <Button onClick={addRepository} size='sm'>
+          Add repository
+        </Button>
+        <Button onClick={removeRepository} variant='destructive' size='sm'>
+          Remove repository
+        </Button>
+        <Button onClick={resetEntireAppConfig} variant='destructive' size='sm'>
+          Reset entire app config
+        </Button>
       </div>
-    </>
+    </div>
   );
 }

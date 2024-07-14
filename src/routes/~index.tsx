@@ -8,7 +8,7 @@ export const Route = createFileRoute('/')({
 function Index() {
   const appConfigResponse = useAppConfig();
   if (appConfigResponse.status !== 'success') {
-    return <div>Loading config...</div>;
+    return <div>Loading app config...</div>;
   }
 
   if (appConfigResponse.data.repositories.length > 0) {
