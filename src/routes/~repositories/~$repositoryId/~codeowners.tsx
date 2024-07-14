@@ -40,6 +40,13 @@ function Codeowners() {
     }
   }, [appConfig?.repositories]);
 
+  const onGetChangesCodeownersForCurrent = useCallback(() => {
+    if (branchInputRef.current) {
+      branchInputRef.current.value = 'HEAD';
+    }
+    onGetChangesCodeowners();
+  }, [onGetChangesCodeowners]);
+
   if (!appConfig) {
     return 'Loading app config...';
   }
@@ -48,23 +55,24 @@ function Codeowners() {
     <div className='flex flex-col gap-4'>
       <span>
         Enter the local or remote branch name to get the codeowners for changed files comparing with
-        'main' branch.
+        'main' branch. Type HEAD to compare current branch with main.
       </span>
-      <div>
+      <div className='flex gap-2'>
         <Input
           autoFocus
           className='max-w-96'
           type='text'
           ref={branchInputRef}
-          placeholder='origin/your_name/b_name or your_name/branch_name'
+          placeholder='[origin/][your_name/]branch_name.'
           onKeyUp={e => {
             if (e.key === 'Enter') {
               onGetChangesCodeowners();
             }
           }}
         />
-        <Button className='ml-2' onClick={onGetChangesCodeowners}>
-          Get codeowners
+        <Button onClick={onGetChangesCodeowners}>Get codeowners</Button>
+        <Button onClick={onGetChangesCodeownersForCurrent} variant='secondary'>
+          For current branch
         </Button>
       </div>
 
