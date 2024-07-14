@@ -8,7 +8,7 @@ type CodeownerLine = {
 };
 
 function filterCodeownerLine(line: CodeownerLine | null): line is CodeownerLine {
-  return !!line && line.owners.length > 0;
+  return !!line && line.pattern.length > 0;
 }
 
 type Codeowners = CodeownerLine[];
