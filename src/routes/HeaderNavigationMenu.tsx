@@ -1,3 +1,4 @@
+import { useAppConfig } from '@/app-config/useAppConfig';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import {
   NavigationMenu,
@@ -6,25 +7,31 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
+import { Tooltip } from '@/components/ui/tooltip';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import { SettingsIcon } from 'lucide-react';
 
 export const HeaderNavigationMenu = () => {
   const matchRoute = useMatchRoute();
+  const appConfigResponse = useAppConfig();
+  const noRepositories =
+    appConfigResponse.status === 'success' && appConfigResponse.data.repositories.length === 0;
   return (
     <NavigationMenu className='pb-2 border-b'>
       <NavigationMenuList>
-        <NavigationMenuItem>
-          <NavigationMenuLink
-            className={navigationMenuTriggerStyle()}
-            asChild
-            active={!!matchRoute({ to: '/repositories/$repositoryId/codeowners' })}
-          >
-            <Link to='/repositories/$repositoryId/codeowners' params={{ repositoryId: 'any' }}>
-              Repository codeowners
-            </Link>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
+        <Tooltip content={noRepositories ? 'Add at least one repository in settings menu' : null}>
+          <NavigationMenuItem>
+            <NavigationMenuLink
+              className={navigationMenuTriggerStyle()}
+              asChild
+              active={!!matchRoute({ to: '/repositories/$repositoryId/codeowners' })}
+            >
+              <Link to='/repositories/$repositoryId/codeowners' params={{ repositoryId: 'any' }}>
+                Repository codeowners
+              </Link>
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+        </Tooltip>
 
         <NavigationMenuItem className='ml-auto'>
           <NavigationMenuLink

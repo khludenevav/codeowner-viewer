@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
 import { useCallback } from 'react';
 
@@ -13,6 +13,7 @@ export const Route = createFileRoute('/settings')({
 });
 
 function Settings() {
+  const navigate = useNavigate();
   const appConfigResponse = useAppConfig();
   const appConfigUpdate = useUpdateAppConfig();
 
@@ -30,16 +31,26 @@ function Settings() {
     if (!selectedDirectory || Array.isArray(selectedDirectory)) {
       return;
     }
-    appConfigUpdate.mutate({
-      appConfig: {
-        ...appConfigResponse.data,
-        repositories: [
-          ...appConfigResponse.data.repositories,
-          { repoPath: selectedDirectory, codeowners: 'CODEOWNERS' },
-        ],
+    appConfigUpdate.mutate(
+      {
+        appConfig: {
+          ...appConfigResponse.data,
+          repositories: [
+            ...appConfigResponse.data.repositories,
+            { repoPath: selectedDirectory, codeowners: 'CODEOWNERS' },
+          ],
+        },
       },
-    });
-  }, [appConfigResponse.data, appConfigResponse.status, appConfigUpdate]);
+      {
+        onSuccess: () => {
+          navigate({
+            to: '/repositories/$repositoryId/codeowners',
+            params: { repositoryId: 'any' },
+          });
+        },
+      },
+    );
+  }, [appConfigResponse.data, appConfigResponse.status, appConfigUpdate, navigate]);
 
   const removeRepository = useCallback(async () => {
     if (appConfigResponse.status !== 'success') {

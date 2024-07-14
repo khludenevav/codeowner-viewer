@@ -16,6 +16,6 @@ function Index() {
       <Navigate to='/repositories/$repositoryId/codeowners' params={{ repositoryId: 'any' }} />
     );
   } else {
-    <Navigate to='/settings' />;
+    return <Navigate to='/settings' />;
   }
 }

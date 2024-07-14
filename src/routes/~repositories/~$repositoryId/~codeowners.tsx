@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Navigate } from '@tanstack/react-router';
 
 import { useCallback, useRef, useState } from 'react';
 
@@ -49,6 +49,10 @@ function Codeowners() {
 
   if (!appConfig) {
     return 'Loading app config...';
+  }
+
+  if (appConfig.repositories.length === 0) {
+    return <Navigate to='/settings' />;
   }
 
   return (
