@@ -7,6 +7,7 @@ import { getBranchDifference } from '../../../utils/codeowners-command';
 import { useAppConfig } from '../../../app-config/useAppConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@radix-ui/react-scroll-area';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
@@ -71,7 +72,9 @@ function Codeowners() {
       {lastOwners && !isLoading && (
         <div className='flex flex-col gap4'>
           <span>Codeowners for changed files:</span>
-          <pre>{JSON.stringify(Object.fromEntries(lastOwners.entries()), null, 2)}</pre>
+          <ScrollArea className='w-full p-4 rounded-md border'>
+            <pre>{JSON.stringify(Object.fromEntries(lastOwners.entries()), null, 2)}</pre>
+          </ScrollArea>
         </div>
       )}
     </div>

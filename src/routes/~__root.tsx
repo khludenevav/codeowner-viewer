@@ -8,7 +8,7 @@ export const Route = createRootRoute({
       <header className='px-6 mb-6 mt-6'>
         <HeaderNavigationMenu />
       </header>
-      <main className='mx-6'>
+      <main className='mx-6 mb-6'>
         <Outlet />
       </main>
       <TanStackRouterDevtools />
