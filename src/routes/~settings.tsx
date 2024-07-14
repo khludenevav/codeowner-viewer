@@ -7,6 +7,8 @@ import { open } from '@tauri-apps/api/dialog';
 import { path } from '@tauri-apps/api';
 import { useAppConfig, useUpdateAppConfig } from '../app-config/useAppConfig';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react';
 
 export const Route = createFileRoute('/settings')({
   component: () => <Settings />,
@@ -43,10 +45,13 @@ function Settings() {
       },
       {
         onSuccess: () => {
-          navigate({
-            to: '/repositories/$repositoryId/codeowners',
-            params: { repositoryId: 'any' },
-          });
+          // Redirect only first time
+          if (appConfigResponse.data.repositories.length === 0) {
+            navigate({
+              to: '/repositories/$repositoryId/codeowners',
+              params: { repositoryId: 'any' },
+            });
+          }
         },
       },
     );
@@ -92,12 +97,22 @@ function Settings() {
           Add repository
         </Button>
         <Button onClick={removeRepository} variant='destructive' size='sm'>
-          Remove repository
+          Remove last repository
         </Button>
         <Button onClick={resetEntireAppConfig} variant='destructive' size='sm'>
           Reset entire app config
         </Button>
       </div>
+      {appConfigResponse.data.repositories.length > 1 && (
+        <Alert>
+          <Terminal className='h-4 w-4' />
+          <AlertTitle>You added more than one repository</AlertTitle>
+          <AlertDescription>
+            For now using more than one repository is not supported. Program will always use the
+            first one in the list.
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }

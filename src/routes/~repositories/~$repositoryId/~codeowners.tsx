@@ -58,7 +58,7 @@ function Codeowners() {
   return (
     <div className='flex flex-col gap-4'>
       <span>
-        Enter the local or remote branch name to get the codeowners for changed files comparing with
+        Enter a local or remote branch name to get the codeowners for changed files comparing with
         'main' branch. Type HEAD to compare current branch with main.
       </span>
       <div className='flex gap-2'>
