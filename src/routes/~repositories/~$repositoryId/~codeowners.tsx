@@ -8,6 +8,8 @@ import { useAppConfig } from '../../../app-config/useAppConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@radix-ui/react-scroll-area';
+import { VirtualizedCombobox } from '@/components/ui/virtual-combobox';
+import ComboboxInput from '@/components/ui/combobox-inputs';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
@@ -79,6 +81,15 @@ function Codeowners() {
           For current branch
         </Button>
       </div>
+      <div className='flex gap-2 flex-wrap md:flex-nowrap'>
+        <VirtualizedCombobox />
+        <Button onClick={onGetChangesCodeowners}>Get codeowners</Button>
+        <Button onClick={onGetChangesCodeownersForCurrent} variant='secondary'>
+          For current branch
+        </Button>
+      </div>
+
+      <ComboboxInput />
 
       {isLoading && <div>Finding codeowners...</div>}
       {lastOwners && !isLoading && (
