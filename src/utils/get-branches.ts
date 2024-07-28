@@ -7,7 +7,7 @@ import { useCallback } from 'react';
 const CURRENT_PREFIX = '* ';
 const REMOTE_PREFIX = 'remotes/';
 
-type Branches = {
+export type Branches = {
   current: string;
   locals: string[];
   remotes: string[];
@@ -73,7 +73,7 @@ export function useBranches() {
         ? getBranches(appConfigResponse.data.repositories[0])
         : NO_BRANCHES,
     enabled: appConfigResponse.status === 'success',
-    staleTime: 1_000 * 60,
+    refetchInterval: 1_000 * 60,
   });
   return result;
 }

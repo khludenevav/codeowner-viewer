@@ -8,11 +8,27 @@ import { useAppConfig } from '../../../app-config/useAppConfig';
 import { ScrollArea } from '@radix-ui/react-scroll-area';
 import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-combobox';
 import useRefState from '@/utils/hooks/useRefState';
-import { useBranches } from '@/utils/get-branches';
+import { Branches, useBranches, useUpdateBranches } from '@/utils/get-branches';
+import { Button } from '@/components/ui/button';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
 });
+
+function makeBranchOptions(branchedData: Branches) {
+  const headOption = {
+    value: branchedData.current,
+    label: `(HEAD) ${branchedData.current}`,
+  };
+  const branches: ComboboxOption[] = [headOption];
+  for (const branch of branchedData.locals) {
+    branches.push({ value: branch, label: branch });
+  }
+  for (const branch of branchedData.remotes) {
+    branches.push({ value: branch, label: branch });
+  }
+  return { branches, headOption };
+}
 
 function Codeowners() {
   const [isLoading, setIsLoading] = useState<boolean>();
@@ -20,23 +36,14 @@ function Codeowners() {
   const [selectedBranchOption, selectedBranchOptionRef, setSelectedBranchOption] =
     useRefState<ComboboxOption | null>(null);
   const branchesResponse = useBranches();
+  const updateBranchesList = useUpdateBranches();
   const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
   const appConfigResponse = useAppConfig();
   const appConfig: AppConfig | undefined = appConfigResponse.data;
 
   useEffect(() => {
     if (branchesResponse.status === 'success') {
-      const headOption = {
-        value: branchesResponse.data.current,
-        label: `(HEAD) ${branchesResponse.data.current}`,
-      };
-      const branches: ComboboxOption[] = [headOption];
-      for (const branch of branchesResponse.data.locals) {
-        branches.push({ value: branch, label: branch });
-      }
-      for (const branch of branchesResponse.data.remotes) {
-        branches.push({ value: branch, label: branch });
-      }
+      const { branches, headOption } = makeBranchOptions(branchesResponse.data);
       setBranchOptions(branches);
       if (!selectedBranchOptionRef.current) {
         setSelectedBranchOption(headOption);
@@ -100,6 +107,12 @@ function Codeowners() {
           height='400px'
           disabled={branchesResponse.status !== 'success'}
         />
+        <Button
+          variant='outline'
+          onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
+        >
+          Update branches list
+        </Button>
       </div>
 
       {isLoading && <div>Calculating codeowners...</div>}
