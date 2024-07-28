@@ -1,17 +1,16 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { type AppConfig } from '../../../app-config/app-config';
-import { getBranchDifference } from '../../../utils/codeowners-command';
+import { useBranchCodeowners, useUpdateBranchCodeowners } from '../../../utils/codeowners-command';
 import { useAppConfig } from '../../../app-config/useAppConfig';
-import { ScrollArea } from '@radix-ui/react-scroll-area';
 import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-combobox';
-import useRefState from '@/utils/hooks/useRefState';
 import { Branches, useBranches, useUpdateBranches } from '@/utils/get-branches';
 import { Button } from '@/components/ui/button';
 import { dayjs } from '@/utils/dayjs';
 import { RefreshCw } from 'lucide-react';
+import { Tooltip } from '@/components/ui/tooltip';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
@@ -33,59 +32,32 @@ function makeBranchOptions(branchedData: Branches) {
 }
 
 function Codeowners() {
-  const [isLoading, setIsLoading] = useState<boolean>();
-  const [lastOwners, setLastOwners] = useState<Map<string, string[]> | null>(null);
-  const [selectedBranchOption, selectedBranchOptionRef, setSelectedBranchOption] =
-    useRefState<ComboboxOption | null>(null);
-  const branchesResponse = useBranches();
-  const updateBranchesList = useUpdateBranches();
   const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
+  const [selectedBranchOption, setSelectedBranchOption] = useState<ComboboxOption | null>(null);
   const appConfigResponse = useAppConfig();
   const appConfig: AppConfig | undefined = appConfigResponse.data;
+
+  const branchesResponse = useBranches();
+  const updateBranchesList = useUpdateBranches();
+
+  const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
+  const branchCodeownersResponse = useBranchCodeowners(normalizedSelectedBranch);
+  const updateBranchCodeowners = useUpdateBranchCodeowners(normalizedSelectedBranch);
 
   useEffect(() => {
     if (branchesResponse.status === 'success') {
       const { branches, headOption } = makeBranchOptions(branchesResponse.data);
       setBranchOptions(branches);
-      if (!selectedBranchOptionRef.current) {
+      if (!selectedBranchOption) {
         setSelectedBranchOption(headOption);
       }
     }
   }, [
     branchesResponse.data,
     branchesResponse.status,
-    selectedBranchOptionRef,
+    selectedBranchOption,
     setSelectedBranchOption,
   ]);
-
-  const onGetChangesCodeowners = useCallback(async () => {
-    const branch = selectedBranchOptionRef.current?.value;
-    if (!branch) {
-      return;
-    }
-    const repository = appConfig?.repositories[0];
-    if (repository) {
-      setLastOwners(null);
-      setIsLoading(true);
-      try {
-        const owners = await getBranchDifference(repository, branch);
-        setLastOwners(owners);
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      console.log('No repo');
-      setLastOwners(null);
-    }
-  }, [appConfig?.repositories, selectedBranchOptionRef]);
-
-  const selectedBranchChanged = useCallback(
-    (newBranchOption: ComboboxOption) => {
-      setSelectedBranchOption(newBranchOption);
-      onGetChangesCodeowners();
-    },
-    [onGetChangesCodeowners, setSelectedBranchOption],
-  );
 
   if (!appConfig) {
     return 'Loading app config...';
@@ -96,28 +68,31 @@ function Codeowners() {
   }
 
   return (
-    <div className='flex flex-col gap-4'>
+    <div className='flex flex-col'>
       <span>
         Pick a branch name to get the codeowners for changed files comparing with 'main' branch.
       </span>
-      <div className='flex gap-2 justify-between'>
+
+      <div className='flex gap-2 justify-between mt-2 mb-6'>
         <VirtualizedCombobox
           options={branchOptions}
           selectedOption={selectedBranchOption}
-          selectedChanged={selectedBranchChanged}
+          selectedChanged={setSelectedBranchOption}
           searchPlaceholder='Select branch ...'
           height='400px'
           disabled={branchesResponse.status !== 'success'}
         />
 
         <div className='flex gap-2 items-center'>
-          <Button
-            variant='ghost'
-            size='icon'
-            onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
-          >
-            <RefreshCw className='h-5 w-5' />
-          </Button>
+          <Tooltip content='Update branches list'>
+            <Button
+              variant='ghost'
+              size='icon'
+              onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
+            >
+              <RefreshCw className='h-5 w-5' />
+            </Button>
+          </Tooltip>
           <span className='text-sm'>
             Branch list updated
             <br />
@@ -126,15 +101,36 @@ function Codeowners() {
         </div>
       </div>
 
-      {isLoading && <div>Calculating codeowners...</div>}
-      {lastOwners && !isLoading && (
+      {branchCodeownersResponse.status === 'pending' && <div>Calculating codeowners...</div>}
+      {branchCodeownersResponse.status === 'error' && <div>Calculating codeowners error</div>}
+      {branchCodeownersResponse.data && (
         <div className='flex flex-col gap-2'>
-          <span>Codeowners for changed files:</span>
-          <ScrollArea className='w-full p-4 rounded-md border'>
+          <div className='flex gap-2 justify-between items-center'>
+            <span>Codeowners for changed files:</span>{' '}
+            <span className='text-sm'>
+              Codeowners updated at{' '}
+              {dayjs(branchCodeownersResponse.dataUpdatedAt).format('HH:mm:ss')}
+            </span>
+          </div>
+          <div className='w-full p-4 rounded-md border overflow-auto relative'>
+            <Tooltip content='Update codeowners'>
+              <Button
+                className='absolute top-2 right-2'
+                variant='ghost'
+                size='icon'
+                onClick={
+                  branchCodeownersResponse.fetchStatus === 'idle'
+                    ? updateBranchCodeowners
+                    : undefined
+                }
+              >
+                <RefreshCw className='h-5 w-5' />
+              </Button>
+            </Tooltip>
             <pre className='text-sm text-neutral-900 dark:text-neutral-400'>
-              {JSON.stringify(Object.fromEntries(lastOwners.entries()), null, 2)}
+              {JSON.stringify(Object.fromEntries(branchCodeownersResponse.data.entries()), null, 2)}
             </pre>
-          </ScrollArea>
+          </div>
         </div>
       )}
     </div>

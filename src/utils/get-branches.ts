@@ -73,7 +73,7 @@ export function useBranches() {
         ? getBranches(appConfigResponse.data.repositories[0])
         : NO_BRANCHES,
     enabled: appConfigResponse.status === 'success',
-    refetchInterval: 1_000 * 60,
+    refetchInterval: 1_000 * 60 * 5, // every 5 min
   });
   return result;
 }
