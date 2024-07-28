@@ -10,6 +10,8 @@ import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-com
 import useRefState from '@/utils/hooks/useRefState';
 import { Branches, useBranches, useUpdateBranches } from '@/utils/get-branches';
 import { Button } from '@/components/ui/button';
+import { dayjs } from '@/utils/dayjs';
+import { RefreshCw } from 'lucide-react';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
@@ -98,7 +100,7 @@ function Codeowners() {
       <span>
         Pick a branch name to get the codeowners for changed files comparing with 'main' branch.
       </span>
-      <div className='flex gap-2'>
+      <div className='flex gap-2 justify-between'>
         <VirtualizedCombobox
           options={branchOptions}
           selectedOption={selectedBranchOption}
@@ -107,12 +109,21 @@ function Codeowners() {
           height='400px'
           disabled={branchesResponse.status !== 'success'}
         />
-        <Button
-          variant='outline'
-          onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
-        >
-          Update branches list
-        </Button>
+
+        <div className='flex gap-2 items-center'>
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
+          >
+            <RefreshCw className='h-5 w-5' />
+          </Button>
+          <span className='text-sm'>
+            Branch list updated
+            <br />
+            at {dayjs(branchesResponse.dataUpdatedAt).format('HH:mm:ss')}
+          </span>
+        </div>
       </div>
 
       {isLoading && <div>Calculating codeowners...</div>}
