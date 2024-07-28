@@ -13,33 +13,17 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import * as React from 'react';
 
-function generateRandomStrings() {
-  const items = new Set<string>();
-  while (items.size < 20000) {
-    // const randomString = Math.random().toString(36).substr(2, 10);
-    // const times = Math.max(5, Math.floor(Math.random() * 8));
-    // items.add(randomString.repeat(times));
-    items.add(items.size.toString());
-  }
-  return Array.from(items);
-}
-
-const initialOptions: Option[] = generateRandomStrings().map(option => ({
-  value: option,
-  label: option,
-}));
-
-type Option = {
+export type ComboboxOption = {
   value: string;
   label: string;
 };
 
 interface VirtualizedCommandProps {
-  height: string;
-  options: Option[];
+  options: ComboboxOption[];
+  selectedOption: ComboboxOption | null;
+  onSelectOption: (option: string) => void;
   placeholder: string;
-  selectedOption: string;
-  onSelectOption?: (option: string) => void;
+  height: string;
 }
 
 const VirtualizedCommand = ({
@@ -49,7 +33,7 @@ const VirtualizedCommand = ({
   selectedOption,
   onSelectOption,
 }: VirtualizedCommandProps) => {
-  const [filteredOptions, setFilteredOptions] = React.useState<Option[]>(options);
+  const [filteredOptions, setFilteredOptions] = React.useState<ComboboxOption[]>(options);
   const parentRef = React.useRef(null);
 
   const virtualizer = useVirtualizer({
@@ -110,7 +94,7 @@ const VirtualizedCommand = ({
                 <Check
                   className={cn(
                     'mr-2 h-4 min-w-6',
-                    selectedOption === filteredOptions[virtualOption.index].value
+                    selectedOption === filteredOptions[virtualOption.index]
                       ? 'opacity-100'
                       : 'opacity-0',
                   )}
@@ -126,20 +110,23 @@ const VirtualizedCommand = ({
 };
 
 interface VirtualizedComboboxProps {
-  options?: Option[];
+  options: ComboboxOption[];
+  selectedOption: ComboboxOption | null;
+  selectedChanged: (newSelectedOption: ComboboxOption) => void;
   searchPlaceholder?: string;
-  width?: string;
+  disabled?: boolean;
   height?: string;
 }
 /** Button is a trigger which opens popup with a input filter and virtualized list of options */
 export function VirtualizedCombobox({
-  options = initialOptions,
-  searchPlaceholder = 'Search items...',
-  width = '400px',
+  options,
+  selectedOption,
+  selectedChanged,
+  searchPlaceholder = 'Search ...',
+  disabled = false,
   height = '400px',
 }: VirtualizedComboboxProps) {
   const [open, setOpen] = React.useState<boolean>(false);
-  const [selectedOption, setSelectedOption] = React.useState<string>('');
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -148,27 +135,23 @@ export function VirtualizedCombobox({
           variant='outline'
           role='combobox'
           aria-expanded={open}
+          disabled={disabled}
           className='justify-between'
-          style={{
-            width: width,
-          }}
         >
-          {selectedOption
-            ? options.find(option => option.value === selectedOption)?.label ?? ''
-            : searchPlaceholder}
+          {selectedOption ? selectedOption.label : searchPlaceholder}
           <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='min-w-[--radix-popover-trigger-width] p-0'>
+      <PopoverContent className='min-w-[--radix-popover-trigger-width] p-0' align='start'>
         <VirtualizedCommand
-          height={height}
           options={options}
-          placeholder={searchPlaceholder}
           selectedOption={selectedOption}
           onSelectOption={currentValue => {
-            setSelectedOption(currentValue === selectedOption ? '' : currentValue);
+            selectedChanged(options.find(opt => opt.value === currentValue)!);
             setOpen(false);
           }}
+          placeholder={searchPlaceholder}
+          height={height}
         />
       </PopoverContent>
     </Popover>

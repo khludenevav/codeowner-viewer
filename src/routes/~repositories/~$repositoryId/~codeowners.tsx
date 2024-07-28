@@ -1,28 +1,56 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { type AppConfig } from '../../../app-config/app-config';
 import { getBranchDifference } from '../../../utils/codeowners-command';
 import { useAppConfig } from '../../../app-config/useAppConfig';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@radix-ui/react-scroll-area';
-import { VirtualizedCombobox } from '@/components/ui/virtual-combobox';
-import ComboboxInput from '@/components/ui/combobox-inputs';
+import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-combobox';
+import useRefState from '@/utils/hooks/useRefState';
+import { useBranches } from '@/utils/get-branches';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
 });
+
 function Codeowners() {
-  const branchInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState<boolean>();
   const [lastOwners, setLastOwners] = useState<Map<string, string[]> | null>(null);
+  const [selectedBranchOption, selectedBranchOptionRef, setSelectedBranchOption] =
+    useRefState<ComboboxOption | null>(null);
+  const branchesResponse = useBranches();
+  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
   const appConfigResponse = useAppConfig();
   const appConfig: AppConfig | undefined = appConfigResponse.data;
 
+  useEffect(() => {
+    if (branchesResponse.status === 'success') {
+      const headOption = {
+        value: branchesResponse.data.current,
+        label: `(HEAD) ${branchesResponse.data.current}`,
+      };
+      const branches: ComboboxOption[] = [headOption];
+      for (const branch of branchesResponse.data.locals) {
+        branches.push({ value: branch, label: branch });
+      }
+      for (const branch of branchesResponse.data.remotes) {
+        branches.push({ value: branch, label: branch });
+      }
+      setBranchOptions(branches);
+      if (!selectedBranchOptionRef.current) {
+        setSelectedBranchOption(headOption);
+      }
+    }
+  }, [
+    branchesResponse.data,
+    branchesResponse.status,
+    selectedBranchOptionRef,
+    setSelectedBranchOption,
+  ]);
+
   const onGetChangesCodeowners = useCallback(async () => {
-    const branch = branchInputRef.current?.value?.trim();
+    const branch = selectedBranchOptionRef.current?.value;
     if (!branch) {
       return;
     }
@@ -40,14 +68,15 @@ function Codeowners() {
       console.log('No repo');
       setLastOwners(null);
     }
-  }, [appConfig?.repositories]);
+  }, [appConfig?.repositories, selectedBranchOptionRef]);
 
-  const onGetChangesCodeownersForCurrent = useCallback(() => {
-    if (branchInputRef.current) {
-      branchInputRef.current.value = 'HEAD';
-    }
-    onGetChangesCodeowners();
-  }, [onGetChangesCodeowners]);
+  const selectedBranchChanged = useCallback(
+    (newBranchOption: ComboboxOption) => {
+      setSelectedBranchOption(newBranchOption);
+      onGetChangesCodeowners();
+    },
+    [onGetChangesCodeowners, setSelectedBranchOption],
+  );
 
   if (!appConfig) {
     return 'Loading app config...';
@@ -60,38 +89,20 @@ function Codeowners() {
   return (
     <div className='flex flex-col gap-4'>
       <span>
-        Enter a local or remote branch name to get the codeowners for changed files comparing with
-        'main' branch. Type HEAD to compare current branch with main.
+        Pick a branch name to get the codeowners for changed files comparing with 'main' branch.
       </span>
-      <div className='flex gap-2 flex-wrap md:flex-nowrap'>
-        <Input
-          autoFocus
-          className='max-w-96 min-w-32'
-          type='text'
-          ref={branchInputRef}
-          placeholder='[origin/][your_name/]branch_name.'
-          onKeyUp={e => {
-            if (e.key === 'Enter') {
-              onGetChangesCodeowners();
-            }
-          }}
+      <div className='flex gap-2'>
+        <VirtualizedCombobox
+          options={branchOptions}
+          selectedOption={selectedBranchOption}
+          selectedChanged={selectedBranchChanged}
+          searchPlaceholder='Select branch ...'
+          height='400px'
+          disabled={branchesResponse.status !== 'success'}
         />
-        <Button onClick={onGetChangesCodeowners}>Get codeowners</Button>
-        <Button onClick={onGetChangesCodeownersForCurrent} variant='secondary'>
-          For current branch
-        </Button>
-      </div>
-      <div className='flex gap-2 flex-wrap md:flex-nowrap'>
-        <VirtualizedCombobox />
-        <Button onClick={onGetChangesCodeowners}>Get codeowners</Button>
-        <Button onClick={onGetChangesCodeownersForCurrent} variant='secondary'>
-          For current branch
-        </Button>
       </div>
 
-      <ComboboxInput />
-
-      {isLoading && <div>Finding codeowners...</div>}
+      {isLoading && <div>Calculating codeowners...</div>}
       {lastOwners && !isLoading && (
         <div className='flex flex-col gap-2'>
           <span>Codeowners for changed files:</span>
