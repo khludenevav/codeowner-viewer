@@ -9,8 +9,8 @@ import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-com
 import { Branches, useBranches, useUpdateBranches } from '@/utils/get-branches';
 import { Button } from '@/components/ui/button';
 import { dayjs } from '@/utils/dayjs';
-import { RefreshCw } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
+import { RefreshIcon } from '@/components/icons/refresh-icon';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
@@ -88,9 +88,10 @@ function Codeowners() {
             <Button
               variant='ghost'
               size='icon'
+              loading={branchesResponse.fetchStatus === 'fetching'}
               onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
             >
-              <RefreshCw className='h-5 w-5' />
+              <RefreshIcon className='[animation-duration:2500ms]' />
             </Button>
           </Tooltip>
           <span className='text-sm'>
@@ -118,13 +119,14 @@ function Codeowners() {
                 className='absolute top-2 right-2'
                 variant='ghost'
                 size='icon'
+                loading={branchCodeownersResponse.fetchStatus === 'fetching'}
                 onClick={
                   branchCodeownersResponse.fetchStatus === 'idle'
                     ? updateBranchCodeowners
                     : undefined
                 }
               >
-                <RefreshCw className='h-5 w-5' />
+                <RefreshIcon className='[animation-duration:2500ms]' />
               </Button>
             </Tooltip>
             <pre className='text-sm text-neutral-900 dark:text-neutral-400'>

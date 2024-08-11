@@ -1,5 +1,3 @@
-import { Command } from '@tauri-apps/api/shell';
-import { getOwnerTeam, parseCodeowners } from './codeowners-utils';
 import { Repositories } from '../app-config/app-config';
 import { invoke } from '@tauri-apps/api';
 import { useAppConfig } from '@/app-config/useAppConfig';
@@ -10,39 +8,17 @@ async function getBranchDifference(
   repository: Repositories,
   branch: string,
 ): Promise<null | Map<string, string[]>> {
-  const command = new Command(
-    'run-git-command',
-    ['--no-pager', 'diff', '--name-only', `origin/main...${branch}`],
-    { cwd: repository.repoPath },
-  );
-  const output = await command.execute();
-  if (output.code !== 0) {
-    console.log(`Execution code: ${output.code}.\n${output.stderr}`);
-    return null;
-  }
-  const lines = output.stdout.split('\n');
-
-  const codeownersFileContent: string = await invoke('get_codeowners_content', {
+  const owners = (await invoke('get_changed_codeowners_for_branch', {
     branch,
     absRepoPath: repository.repoPath,
-  });
+  })) as string;
+  // We pass it as list in order to get always the same data in the same order.
+  const parsedOwners = JSON.parse(owners) as { owners: string; files: string[] }[];
 
-  const codeowners = parseCodeowners(codeownersFileContent);
-
-  const owners = new Map<string, string[]>();
-  for (const filePath of lines) {
-    if (!filePath) {
-      continue;
-    }
-    const ownerTeam = getOwnerTeam({ codeowners, filename: filePath });
-    let teamFiles = owners.get(ownerTeam);
-    if (!teamFiles) {
-      teamFiles = [];
-      owners.set(ownerTeam, teamFiles);
-    }
-    teamFiles.push(filePath);
-  }
-  return owners;
+  return parsedOwners.reduce((acc, item) => {
+    acc.set(item.owners, item.files);
+    return acc;
+  }, new Map<string, string[]>());
 }
 
 function getBranchCodeownersQueryKey(branch: string | null) {

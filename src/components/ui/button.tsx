@@ -21,6 +21,12 @@ const buttonVariants = cva(
         lg: 'h-11 rounded-md px-8',
         icon: 'h-10 w-10',
       },
+      loading: {
+        // Children state based on parent
+        // https://tailwindcss.com/docs/hover-focus-and-other-states#styling-based-on-parent-state
+        true: 'group',
+        false: '',
+      },
     },
     defaultVariants: {
       variant: 'default',
@@ -32,14 +38,22 @@ const buttonVariants = cva(
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
+  /** Just adds data attribute. The children is responsible for handling this attribute in styles */
+  loading?: boolean;
   asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, loading, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
+    const additional = loading ? { 'data-loading': true } : {};
     return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+      <Comp
+        {...additional}
+        className={cn(buttonVariants({ variant, size, loading, className }))}
+        ref={ref}
+        {...props}
+      />
     );
   },
 );
