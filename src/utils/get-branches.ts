@@ -3,6 +3,7 @@ import { Command } from '@tauri-apps/api/shell';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppConfig } from '@/app-config/useAppConfig';
 import { useCallback } from 'react';
+import { ComboboxOption } from '@/components/ui/virtual-combobox';
 
 const CURRENT_PREFIX = '* ';
 const REMOTE_PREFIX = 'remotes/';
@@ -84,4 +85,19 @@ export function useUpdateBranches() {
     queryClient.invalidateQueries({ queryKey: branchesQueryKey });
   }, [queryClient]);
   return updateBranches;
+}
+
+export function makeBranchOptions(branchedData: Branches) {
+  const headOption = {
+    value: branchedData.current,
+    label: `(HEAD) ${branchedData.current}`,
+  };
+  const branches: ComboboxOption[] = [headOption];
+  for (const branch of branchedData.locals) {
+    branches.push({ value: branch, label: branch });
+  }
+  for (const branch of branchedData.remotes) {
+    branches.push({ value: branch, label: branch });
+  }
+  return { branches, headOption };
 }

@@ -4,14 +4,14 @@ use std::{collections::HashMap, process::Command};
 pub mod codeowners;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
-#[macro_use]
 extern crate pretty_assertions;
 
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_branch_diff,
-            get_changed_codeowners_for_branch
+            get_changed_codeowners_for_branch,
+            get_codeowners_for_branch_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -68,17 +68,7 @@ fn get_changed_codeowners_for_branch(abs_repo_path: &str, branch: &str) -> Strin
             // it is for latest line
             continue;
         }
-
-        let owner_team = match codeowners.of(file_path) {
-            None => None,
-            Some(owners) => Some(
-                owners
-                    .iter()
-                    .map(|owner| format!("{owner}"))
-                    .collect::<Vec<String>>()
-                    .join(", "),
-            ),
-        };
+        let owner_team = get_joined_codeowners(codeowners.of(file_path));
 
         owners_dictionary
             .entry(owner_team.unwrap_or(String::new()))
@@ -108,4 +98,25 @@ fn get_codeowners_content(abs_repo_path: &str, branch: &str) -> String {
     }
     let content: String = String::from_utf8_lossy(&output.stdout).to_string();
     content
+}
+
+/** Returns comments for codeowners file of passed branch */
+#[tauri::command(async)]
+fn get_codeowners_for_branch_file(abs_repo_path: &str, branch: &str, file: &str) -> String {
+    let codeowners_content = get_codeowners_content(abs_repo_path, branch);
+    let codeowners = codeowners::from_reader(codeowners_content.as_bytes());
+    get_joined_codeowners(codeowners.of(file)).unwrap_or(String::from(""))
+}
+
+fn get_joined_codeowners(owners_vec: Option<&Vec<codeowners::Owner>>) -> Option<String> {
+    match owners_vec {
+        None => None,
+        Some(owners) => Some(
+            owners
+                .iter()
+                .map(|owner| format!("{owner}"))
+                .collect::<Vec<String>>()
+                .join(", "),
+        ),
+    }
 }

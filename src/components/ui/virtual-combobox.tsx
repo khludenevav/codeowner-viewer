@@ -10,6 +10,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/utils/components-utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import clsx from 'clsx';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import * as React from 'react';
 
@@ -110,6 +111,8 @@ interface VirtualizedComboboxProps {
   searchPlaceholder?: string;
   disabled?: boolean;
   height?: string;
+  /** For button element */
+  className?: string;
 }
 /** Button is a trigger which opens popup with a input filter and virtualized list of options */
 export function VirtualizedCombobox({
@@ -119,6 +122,7 @@ export function VirtualizedCombobox({
   searchPlaceholder = 'Search ...',
   disabled = false,
   height = '400px',
+  className,
 }: VirtualizedComboboxProps) {
   const [open, setOpen] = React.useState<boolean>(false);
 
@@ -130,7 +134,7 @@ export function VirtualizedCombobox({
           role='combobox'
           aria-expanded={open}
           disabled={disabled}
-          className='justify-between'
+          className={clsx('justify-between', className)}
         >
           {selectedOption ? selectedOption.label : searchPlaceholder}
           <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />

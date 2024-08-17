@@ -27,7 +27,16 @@ export const HeaderNavigationMenu = () => {
               active={!!matchRoute({ to: '/repositories/$repositoryId/codeowners' })}
             >
               <Link to='/repositories/$repositoryId/codeowners' params={{ repositoryId: 'any' }}>
-                Repository codeowners
+                Changes owners
+              </Link>
+            </NavigationMenuLink>
+            <NavigationMenuLink
+              className={navigationMenuTriggerStyle()}
+              asChild
+              active={!!matchRoute({ to: '/repositories/$repositoryId/file-owner' })}
+            >
+              <Link to='/repositories/$repositoryId/file-owner' params={{ repositoryId: 'any' }}>
+                File owners
               </Link>
             </NavigationMenuLink>
           </NavigationMenuItem>

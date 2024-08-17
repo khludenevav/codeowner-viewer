@@ -42,8 +42,7 @@ export function useBranchCodeowners(branch: string | null) {
 
 export function useUpdateBranchCodeowners(branch: string | null) {
   const queryClient = useQueryClient();
-  const updateBranchCodeowners = useCallback(() => {
+  return useCallback(() => {
     queryClient.invalidateQueries({ queryKey: getBranchCodeownersQueryKey(branch) });
   }, [branch, queryClient]);
-  return updateBranchCodeowners;
 }

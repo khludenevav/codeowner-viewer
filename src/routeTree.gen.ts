@@ -13,6 +13,7 @@
 import { Route as rootRoute } from './routes/~__root'
 import { Route as SettingsImport } from './routes/~settings'
 import { Route as IndexImport } from './routes/~index'
+import { Route as RepositoriesRepositoryIdFileOwnerImport } from './routes/~repositories/~$repositoryId/~file-owner'
 import { Route as RepositoriesRepositoryIdCodeownersImport } from './routes/~repositories/~$repositoryId/~codeowners'
 
 // Create/Update Routes
@@ -26,6 +27,12 @@ const IndexRoute = IndexImport.update({
   path: '/',
   getParentRoute: () => rootRoute,
 } as any)
+
+const RepositoriesRepositoryIdFileOwnerRoute =
+  RepositoriesRepositoryIdFileOwnerImport.update({
+    path: '/repositories/$repositoryId/file-owner',
+    getParentRoute: () => rootRoute,
+  } as any)
 
 const RepositoriesRepositoryIdCodeownersRoute =
   RepositoriesRepositoryIdCodeownersImport.update({
@@ -58,6 +65,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RepositoriesRepositoryIdCodeownersImport
       parentRoute: typeof rootRoute
     }
+    '/repositories/$repositoryId/file-owner': {
+      id: '/repositories/$repositoryId/file-owner'
+      path: '/repositories/$repositoryId/file-owner'
+      fullPath: '/repositories/$repositoryId/file-owner'
+      preLoaderRoute: typeof RepositoriesRepositoryIdFileOwnerImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -67,6 +81,7 @@ export const routeTree = rootRoute.addChildren({
   IndexRoute,
   SettingsRoute,
   RepositoriesRepositoryIdCodeownersRoute,
+  RepositoriesRepositoryIdFileOwnerRoute,
 })
 
 /* prettier-ignore-end */
@@ -79,7 +94,8 @@ export const routeTree = rootRoute.addChildren({
       "children": [
         "/",
         "/settings",
-        "/repositories/$repositoryId/codeowners"
+        "/repositories/$repositoryId/codeowners",
+        "/repositories/$repositoryId/file-owner"
       ]
     },
     "/": {
@@ -90,6 +106,9 @@ export const routeTree = rootRoute.addChildren({
     },
     "/repositories/$repositoryId/codeowners": {
       "filePath": "~repositories/~$repositoryId/~codeowners.tsx"
+    },
+    "/repositories/$repositoryId/file-owner": {
+      "filePath": "~repositories/~$repositoryId/~file-owner.tsx"
     }
   }
 }
