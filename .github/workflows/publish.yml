@@ -60,7 +60,7 @@ jobs:
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'App v__VERSION__'
-          releaseBody: 'Now UI does not freezes on branch difference update.'
+          releaseBody: 'Added page to get codeowners for particular file.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
