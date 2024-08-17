@@ -79,7 +79,7 @@ function Codeowners() {
 
   return (
     <div className='flex flex-col'>
-      <span>Pick an branch and file in that branch to get and file codeowners.</span>
+      <span>Pick a branch and a file in that branch to get this file codeowners.</span>
 
       <div className='flex gap-2 justify-between mt-2 mb-2'>
         <VirtualizedCombobox
