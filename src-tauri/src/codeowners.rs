@@ -175,7 +175,12 @@ where
     Owners { paths }
 }
 
-fn make_pattern(path: &str) -> Pattern {
+fn make_pattern(raw_path: &str) -> Pattern {
+    lazy_static! {
+        static ref ESCAPE_REGEX: Regex = Regex::new(r"\\(\[|\])").unwrap();
+    }
+    // Replaces "\["=>"[[]", "\]"=>"[]]". Ideally we should escape space also, but I hope no one will use spaces in paths.
+    let path = ESCAPE_REGEX.replace_all(raw_path, "[$1]").into_owned();
     // if pattern starts with anchor or explicit wild card, it should
     // match any prefix
     let prefixed = if path.starts_with('*') || path.starts_with('/') {
@@ -401,6 +406,18 @@ apps/ @octocat
         assert_eq!(
             owners.of("foo/bar/baz.rs"),
             Some(&vec![Owner::Username("@doug".into())])
+        )
+    }
+
+    #[test]
+    fn make_pattern_escapes() {
+        let pattern = make_pattern(
+            r"/client/apps/dashboard/pages/dashboard/destinations/\[groupId\]/data-security.page.tsx",
+        );
+
+        assert_eq!(
+            pattern.to_string(),
+            r"client/apps/dashboard/pages/dashboard/destinations/[[]groupId[]]/data-security.page.tsx"
         )
     }
 }

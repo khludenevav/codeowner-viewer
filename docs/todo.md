@@ -1,0 +1,7 @@
+- on FileOwners tab show exact line which determines owner for particular file
+- make a tab with all files in tree list and corresponding owners
+- support multi repositories
+- repo statistic
+  - how many lines
+  - lines per extension
+  - lines per codeowner
