@@ -10,6 +10,7 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_branch_diff,
+            get_branch_files,
             get_changed_codeowners_for_branch,
             get_codeowners_for_branch_file,
         ])
@@ -18,7 +19,7 @@ fn main() {
 }
 
 /** Returns difference as list of changed files between passed branch and main */
-#[tauri::command]
+#[tauri::command(async)]
 fn get_branch_diff(abs_repo_path: &str, branch: &str) -> String {
     let output = Command::new("git")
         .current_dir(abs_repo_path)
@@ -34,6 +35,41 @@ fn get_branch_diff(abs_repo_path: &str, branch: &str) -> String {
     }
     let content: String = String::from_utf8_lossy(&output.stdout).to_string();
     content
+}
+
+/** Return all files in the repo for passed branch */
+fn get_branch_files_vector(abs_repo_path: &str, branch: &str) -> Vec<String> {
+    let output = Command::new("git")
+        .current_dir(abs_repo_path)
+        .arg("ls-tree")
+        .arg("-r")
+        .arg(branch)
+        .arg("--name-only")
+        .output()
+        .expect("git command failed");
+
+    if !output.status.success() {
+        println!("Error: {}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    let mut branch_files: Vec<String> = Vec::new();
+    for file_path in String::from_utf8_lossy(&output.stdout)
+        .to_string()
+        .split("\n")
+    {
+        // it is for latest line
+        if !file_path.is_empty() {
+            branch_files.push(file_path.to_string());
+        }
+    }
+    branch_files
+}
+
+/** Return all files in the repo for passed branch */
+#[tauri::command(async)]
+fn get_branch_files(abs_repo_path: &str, branch: &str) -> String {
+    let files = get_branch_files_vector(abs_repo_path, branch);
+    serde_json::to_string(&files).unwrap()
 }
 
 struct FrontendCodeowner {
