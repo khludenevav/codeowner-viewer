@@ -166,12 +166,58 @@ impl Serialize for FrontendCodeowner {
 }
 
 fn get_all_codeowners_for_branch_struct(abs_repo_path: &str, branch: &str) -> DirectoryOwners {
-    DirectoryOwners {
+    let codeowners_content = get_codeowners_content(abs_repo_path, branch);
+    let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
+    let files = get_branch_files_vector(abs_repo_path, branch);
+    let mut result: DirectoryOwners = DirectoryOwners {
         name: String::from(""),
         directories: vec![],
         files: vec![],
         owner: Option::None,
+    };
+
+    for (file_index, file_path) in files.iter().enumerate() {
+        if file_index % 100 == 0 {
+            println!("handled {file_index} from {}", files.len());
+        }
+        if file_index > 2000 {
+            break; // we need speedup algorithm. But for now it is enough
+        }
+        let owner = get_joined_codeowners(codeowners.of(&file_path)).unwrap_or(String::new());
+        let mut current = &mut result;
+        let mut it = file_path.split('/').peekable();
+        while let Some(file_path_part) = it.next() {
+            let is_last_part = it.peek().is_none();
+            if is_last_part {
+                current.files.push(FileOwners {
+                    name: file_path_part.to_string(),
+                    owner: String::from(&owner),
+                })
+            } else {
+                if let Some(existing_dir_position) = current
+                    .directories
+                    .iter()
+                    .position(|dir| dir.name == file_path_part)
+                {
+                    current = &mut current.directories[existing_dir_position];
+                } else {
+                    let new_dir_owners = DirectoryOwners {
+                        name: String::from(file_path_part),
+                        directories: vec![],
+                        files: vec![],
+                        owner: Option::None,
+                    };
+                    current.directories.push(new_dir_owners);
+                    current = current
+                        .directories
+                        .iter_mut()
+                        .find(|dir| dir.name == file_path_part)
+                        .expect("Just added this directory, so it should be found")
+                }
+            }
+        }
     }
+    result
 }
 
 struct FileOwners {

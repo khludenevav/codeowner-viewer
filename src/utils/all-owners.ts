@@ -28,7 +28,6 @@ async function getAllOwners(repository: Repositories, branch: string): Promise<D
     branch,
     absRepoPath: repository.repoPath,
   })) as string;
-  console.log(JSON.parse(owners));
   return JSON.parse(owners) as DirectoryOwners;
 }
 

@@ -83,7 +83,7 @@ function Codeowners() {
         </div>
       </div>
       <div>allCodeownersResponse: {allCodeownersResponse.status},</div>
-      <div>{JSON.stringify(allCodeownersResponse.data, null, 2)}</div>
+      <pre>{JSON.stringify(allCodeownersResponse.data, null, 2)}</pre>
     </div>
   );
 }
