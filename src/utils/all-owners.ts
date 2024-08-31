@@ -1,5 +1,5 @@
 import { Repositories } from '../app-config/app-config';
-// import { invoke } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api';
 import { useAppConfig } from '@/app-config/useAppConfig';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
@@ -23,18 +23,13 @@ type DirectoryOwners = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function getAllOwners(_repository: Repositories, _branch: string): Promise<DirectoryOwners> {
-  // const owners = (await invoke('get_all_codeowners_for_branch', {
-  //   branch,
-  //   absRepoPath: repository.repoPath,
-  // })) as string;
-  // return JSON.parse(owners) as DirectoryOwners;
-  return {
-    name: '',
-    directories: [],
-    files: [],
-    owner: null,
-  };
+async function getAllOwners(repository: Repositories, branch: string): Promise<DirectoryOwners> {
+  const owners = (await invoke('get_all_codeowners_for_branch', {
+    branch,
+    absRepoPath: repository.repoPath,
+  })) as string;
+  console.log(JSON.parse(owners));
+  return JSON.parse(owners) as DirectoryOwners;
 }
 
 function getAllCodeownersQueryKey(branch: string | null) {
