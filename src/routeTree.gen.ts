@@ -15,6 +15,7 @@ import { Route as SettingsImport } from './routes/~settings'
 import { Route as IndexImport } from './routes/~index'
 import { Route as RepositoriesRepositoryIdFileOwnerImport } from './routes/~repositories/~$repositoryId/~file-owner'
 import { Route as RepositoriesRepositoryIdCodeownersImport } from './routes/~repositories/~$repositoryId/~codeowners'
+import { Route as RepositoriesRepositoryIdAllOwnersImport } from './routes/~repositories/~$repositoryId/~all-owners'
 
 // Create/Update Routes
 
@@ -40,6 +41,12 @@ const RepositoriesRepositoryIdCodeownersRoute =
     getParentRoute: () => rootRoute,
   } as any)
 
+const RepositoriesRepositoryIdAllOwnersRoute =
+  RepositoriesRepositoryIdAllOwnersImport.update({
+    path: '/repositories/$repositoryId/all-owners',
+    getParentRoute: () => rootRoute,
+  } as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -56,6 +63,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsImport
+      parentRoute: typeof rootRoute
+    }
+    '/repositories/$repositoryId/all-owners': {
+      id: '/repositories/$repositoryId/all-owners'
+      path: '/repositories/$repositoryId/all-owners'
+      fullPath: '/repositories/$repositoryId/all-owners'
+      preLoaderRoute: typeof RepositoriesRepositoryIdAllOwnersImport
       parentRoute: typeof rootRoute
     }
     '/repositories/$repositoryId/codeowners': {
@@ -80,6 +94,7 @@ declare module '@tanstack/react-router' {
 export const routeTree = rootRoute.addChildren({
   IndexRoute,
   SettingsRoute,
+  RepositoriesRepositoryIdAllOwnersRoute,
   RepositoriesRepositoryIdCodeownersRoute,
   RepositoriesRepositoryIdFileOwnerRoute,
 })
@@ -94,6 +109,7 @@ export const routeTree = rootRoute.addChildren({
       "children": [
         "/",
         "/settings",
+        "/repositories/$repositoryId/all-owners",
         "/repositories/$repositoryId/codeowners",
         "/repositories/$repositoryId/file-owner"
       ]
@@ -103,6 +119,9 @@ export const routeTree = rootRoute.addChildren({
     },
     "/settings": {
       "filePath": "~settings.tsx"
+    },
+    "/repositories/$repositoryId/all-owners": {
+      "filePath": "~repositories/~$repositoryId/~all-owners.tsx"
     },
     "/repositories/$repositoryId/codeowners": {
       "filePath": "~repositories/~$repositoryId/~codeowners.tsx"
