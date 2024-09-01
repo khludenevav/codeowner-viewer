@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { dayjs } from '@/utils/dayjs';
 import { Tooltip } from '@/components/ui/tooltip';
 import { RefreshIcon } from '@/components/icons/refresh-icon';
-import { useAllCodeowners } from '@/utils/all-owners';
+import { useAllCodeowners, useUpdateAllCodeowners } from '@/utils/all-owners';
+import { OwnersTree } from './OwnersTree';
 
 export const Route = createFileRoute('/repositories/$repositoryId/all-owners')({
   component: Codeowners,
@@ -24,6 +25,7 @@ function Codeowners() {
   const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
 
   const allCodeownersResponse = useAllCodeowners(normalizedSelectedBranch);
+  const updateAllCodeowners = useUpdateAllCodeowners(normalizedSelectedBranch);
   const branchesResponse = useBranches();
 
   const updateBranchesList = useUpdateBranches();
@@ -82,8 +84,26 @@ function Codeowners() {
           </span>
         </div>
       </div>
-      <div>allCodeownersResponse: {allCodeownersResponse.status},</div>
-      <pre>{JSON.stringify(allCodeownersResponse.data, null, 2)}</pre>
+      <div className='mt-4'>
+        {allCodeownersResponse.status === 'pending' && (
+          <div>
+            Calculating codeowners tree. There is no optimizations, so it can take a long time to
+            calculate (around 5 minutes per 100k files)...
+          </div>
+        )}
+        {allCodeownersResponse.status === 'error' && <div>Calculating codeowners tree error</div>}
+        {allCodeownersResponse.status === 'success' && !allCodeownersResponse.data && (
+          <div>Calculating codeowners tree done, but list is empty</div>
+        )}
+        {allCodeownersResponse.status === 'success' && allCodeownersResponse.data && (
+          <OwnersTree
+            root={allCodeownersResponse.data}
+            dataUpdatedAt={allCodeownersResponse.dataUpdatedAt}
+            updateAllCodeowners={updateAllCodeowners}
+            allCodeownersResponseFetchStatus={allCodeownersResponse.fetchStatus}
+          />
+        )}
+      </div>
     </div>
   );
 }

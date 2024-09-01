@@ -180,9 +180,9 @@ fn get_all_codeowners_for_branch_struct(abs_repo_path: &str, branch: &str) -> Di
         if file_index % 100 == 0 {
             println!("handled {file_index} from {}", files.len());
         }
-        if file_index > 2000 {
-            break; // we need speedup algorithm. But for now it is enough
-        }
+        // if file_index > 400 {
+        //     break; // TODO: we need speedup algorithm. Now it is too long. It is enough for testing.
+        // }
         let owner = get_joined_codeowners(codeowners.of(&file_path)).unwrap_or(String::new());
         let mut current = &mut result;
         let mut it = file_path.split('/').peekable();

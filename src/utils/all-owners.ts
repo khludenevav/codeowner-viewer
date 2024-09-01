@@ -4,13 +4,13 @@ import { useAppConfig } from '@/app-config/useAppConfig';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
-type FileOwners = {
+export type FileOwners = {
   /** File name */
   name: string;
   owner: string;
 };
 
-type DirectoryOwners = {
+export type DirectoryOwners = {
   /** Directory name. For root folder it is empty */
   name: string;
   directories: DirectoryOwners[];
@@ -22,7 +22,6 @@ type DirectoryOwners = {
   owner: string | null;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getAllOwners(repository: Repositories, branch: string): Promise<DirectoryOwners> {
   const owners = (await invoke('get_all_codeowners_for_branch', {
     branch,
@@ -46,6 +45,7 @@ export function useAllCodeowners(branch: string | null) {
         : null,
     enabled: !!branch && appConfigResponse.status === 'success',
     refetchInterval: 1_000 * 60 * 15, // every 15 min
+    refetchOnWindowFocus: false, // for now request is too heavy
   });
   return result;
 }
