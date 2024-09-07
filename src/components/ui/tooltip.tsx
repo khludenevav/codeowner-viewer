@@ -27,17 +27,27 @@ TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
 type Props = {
   content: React.ReactNode;
+  side?: 'top' | 'right' | 'bottom' | 'left';
+  align?: 'start' | 'center' | 'end';
+  delayDuration?: number;
   /** Trigger element */
   children: React.ReactNode;
 };
-const Tooltip: React.FC<Props> = ({ children, content }) => {
+
+const Tooltip: React.FC<Props> = ({
+  content,
+  side = 'top',
+  align = 'center',
+  delayDuration = 700,
+  children,
+}) => {
   if (!content) {
     return children;
   }
   return (
-    <TooltipRoot>
+    <TooltipRoot delayDuration={delayDuration}>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side='top' align='center'>
+      <TooltipContent side={side} align={align}>
         {content}
       </TooltipContent>
     </TooltipRoot>

@@ -7,8 +7,9 @@ import { DirectoryOwners } from '@/utils/all-owners';
 import { dayjs } from '@/utils/dayjs';
 import { FetchStatus } from '@tanstack/react-query';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { UnfoldVertical, FoldVertical } from 'lucide-react';
+import { UnfoldVertical, FoldVertical, ArrowLeftRight, BadgeCheck } from 'lucide-react';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { cn } from '@/utils/components-utils';
 
 type Row = {
   isFile: boolean;
@@ -203,10 +204,46 @@ export const OwnersTree: React.FC<Props> = ({
                 style={{ marginLeft: `${16 * row.indent}px` }}
                 className={row.isFile ? 'invisible' : undefined}
               />
-              <Tooltip content={row.fullName}>
-                <span>{row.name}</span>
+              <Tooltip content={row.fullName} side='top' align='start'>
+                <span className='flex-grow'>{row.name}</span>
               </Tooltip>
-              <span className='ml-auto flex gap-3'>{row.owner}</span>
+              <div className='ml-auto flex gap-3'>
+                {!row.isFile && !row.owner ? (
+                  <Tooltip
+                    delayDuration={0}
+                    content={
+                      <>
+                        Owners do not defined or are different only for some children of this
+                        directory.
+                        <br />
+                        This does not mean an error. It just makes sense to look inside the folder
+                        <br /> to check if the owners are defined everywhere.
+                      </>
+                    }
+                  >
+                    <ArrowLeftRight className='h-5 w-5 text-gray-300 dark:text-gray-600' />
+                  </Tooltip>
+                ) : (
+                  <>
+                    <span className='ml-auto gap-3'>{row.owner}</span>
+                    <Tooltip
+                      delayDuration={0}
+                      content={
+                        row.isFile
+                          ? ''
+                          : 'These are owners for all children of this directory. It also means all sub-owners the same.'
+                      }
+                    >
+                      <BadgeCheck
+                        className={cn(
+                          'h-5 w-5 text-green-300 dark:text-green-800',
+                          row.isFile && 'invisible',
+                        )}
+                      />
+                    </Tooltip>
+                  </>
+                )}
+              </div>
             </div>
           );
         })}
