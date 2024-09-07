@@ -18,7 +18,11 @@ export const ExpandDirButton: React.FC<Props> = ({ expanded, onChange, className
     <LucideChevronRight
       style={style}
       onClick={onClick}
-      className={cn('h-5 w-5 duration-300', expanded && 'rotate-90', className)}
+      className={cn(
+        'h-5 w-5 duration-300 hover:cursor-pointer',
+        expanded && 'rotate-90',
+        className,
+      )}
     />
   );
 };

@@ -1,4 +1,5 @@
 import { ExpandDirButton } from '@/components/custom/expand-dir-button';
+import { CollapseExpandIcon } from '@/components/custom/collapse-expand-icon';
 import { RefreshIcon } from '@/components/icons/refresh-icon';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -46,7 +47,7 @@ export const OwnersTree: React.FC<Props> = ({
   const virtualizer = useWindowVirtualizer({
     count: rows.length,
     estimateSize: () => 24,
-    overscan: 0,
+    overscan: 7,
     scrollMargin: treeRef.current?.offsetTop ?? 0,
     getItemKey: index => rows[index].fullName,
   });
@@ -85,15 +86,53 @@ export const OwnersTree: React.FC<Props> = ({
     setExpandedDirectoriesSet(newExpandedDirectoriesSet);
   }, [root]);
 
+  /** Collapse directory and it's child */
+  const onCollapseAllDirectory = useCallback((fullName: string) => {
+    setExpandedDirectoriesSet(prev => {
+      const newExpandedDirectoriesSet = new Set<string>(prev);
+      for (const currentFullName of prev.values()) {
+        if (currentFullName.startsWith(fullName)) {
+          newExpandedDirectoriesSet.delete(currentFullName);
+        }
+      }
+      return newExpandedDirectoriesSet;
+    });
+  }, []);
+
+  /** Collapse directory and all it's children */
+  const onExpandAllDirectory = useCallback(
+    (targetFullName: string) => {
+      setExpandedDirectoriesSet(prev => {
+        const newExpandedDirectoriesSet = new Set<string>(prev);
+        addRows([], root, -1, '', fName => {
+          let expanded = newExpandedDirectoriesSet.has(fName);
+          if (!expanded) {
+            if (fName.startsWith(targetFullName)) {
+              newExpandedDirectoriesSet.add(fName);
+              expanded = true;
+            }
+          }
+          return expanded;
+        });
+        return newExpandedDirectoriesSet;
+      });
+    },
+    [root],
+  );
+
   return (
     <div className='flex flex-col'>
       <div className='flex gap-2 items-center'>
-        <Button variant='ghost' size='icon' onClick={onCollapseAllClick}>
-          <FoldVertical />
-        </Button>
-        <Button variant='ghost' size='icon' onClick={onExpandAllClick}>
-          <UnfoldVertical />
-        </Button>
+        <Tooltip content='Collapse all'>
+          <Button variant='ghost' size='icon' onClick={onCollapseAllClick}>
+            <FoldVertical />
+          </Button>
+        </Tooltip>
+        <Tooltip content='Expand all'>
+          <Button variant='ghost' size='icon' onClick={onExpandAllClick}>
+            <UnfoldVertical />
+          </Button>
+        </Tooltip>
 
         <div className='flex gap-2 items-start ml-auto'>
           <Tooltip content='Update codeowners tree'>
@@ -121,16 +160,16 @@ export const OwnersTree: React.FC<Props> = ({
         className='mt-2 -mx-2'
         style={{
           height: `${virtualizer.getTotalSize()}px`,
-          // width: '100%',
           position: 'relative',
         }}
       >
         {virtualOptions.map(item => {
           const row = rows[item.index];
+          const expanded = expandedDirectoriesSet.has(row.fullName);
           return (
             <div
               key={item.key}
-              className='flex gap-4 items-center dark:hover:bg-slate-800 hover:bg-zinc-200 rounded-md px-2'
+              className='flex gap-3 group items-center hover:bg-zinc-200 dark:hover:bg-slate-800  rounded-md px-2'
               style={{
                 position: 'absolute',
                 top: 0,
@@ -140,8 +179,26 @@ export const OwnersTree: React.FC<Props> = ({
                 transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
               }}
             >
+              {/* Just to adjust space for files */}
+              {row.isFile && <div className='h-5 w-5 invisible' />}
+              {!row.isFile && expanded && (
+                <Tooltip content="Expand directory and all it's children">
+                  <CollapseExpandIcon
+                    mode='collapse'
+                    onClick={() => onCollapseAllDirectory(row.fullName)}
+                  />
+                </Tooltip>
+              )}
+              {!row.isFile && !expanded && (
+                <Tooltip content="Collapse directory and it's children">
+                  <CollapseExpandIcon
+                    mode='expand'
+                    onClick={() => onExpandAllDirectory(row.fullName)}
+                  />
+                </Tooltip>
+              )}
               <ExpandDirButton
-                expanded={expandedDirectoriesSet.has(row.fullName)}
+                expanded={expanded}
                 onChange={newExpanded => onExpandClick(row.fullName, newExpanded)}
                 style={{ marginLeft: `${16 * row.indent}px` }}
                 className={row.isFile ? 'invisible' : undefined}
@@ -149,9 +206,7 @@ export const OwnersTree: React.FC<Props> = ({
               <Tooltip content={row.fullName}>
                 <span>{row.name}</span>
               </Tooltip>
-              <div className='ml-auto flex gap-3'>
-                <span>{row.owner}</span>
-              </div>
+              <span className='ml-auto flex gap-3'>{row.owner}</span>
             </div>
           );
         })}
