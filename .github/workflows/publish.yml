@@ -60,7 +60,7 @@ jobs:
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'App v__VERSION__'
-          releaseBody: 'Added page to get codeowners for particular file.'
+          releaseBody: 'Added the Repo owners tab to explore all repository owners.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
