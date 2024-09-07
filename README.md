@@ -1,6 +1,10 @@
 ## Getting Started
 
-Desktop application for viewing codeowners for changed files for particular git branch.
+Desktop application for
+
+- exploring codeowners of changed files of particular git branch
+- determining owners of particular file
+- exploring owners for all repository in tree format
 
 ## Installation
 
