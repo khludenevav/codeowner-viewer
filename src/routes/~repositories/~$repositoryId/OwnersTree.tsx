@@ -44,6 +44,7 @@ export const OwnersTree: React.FC<Props> = ({
     estimateSize: () => 32,
     overscan: 0,
     scrollMargin: treeRef.current?.offsetTop ?? 0,
+    getItemKey: index => rows[index].fullName,
   });
   const virtualOptions = virtualizer.getVirtualItems();
 
@@ -80,7 +81,7 @@ export const OwnersTree: React.FC<Props> = ({
           return (
             <div
               key={item.key}
-              className='flex justify-between'
+              className='flex justify-between dark:hover:bg-slate-800 hover:bg-zinc-200 rounded-lg'
               style={{
                 position: 'absolute',
                 top: 0,
@@ -124,7 +125,7 @@ function addRows(rows: Row[], current: DirectoryOwners, indent: number, partialP
     rows.push({
       isFile: true,
       name: file.name,
-      fullName: newPartialPath,
+      fullName: `${newPartialPath}/${file.name}`,
       owner: file.owner,
       indent: indent + 1,
     });
