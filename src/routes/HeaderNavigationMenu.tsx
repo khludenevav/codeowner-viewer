@@ -45,7 +45,7 @@ export const HeaderNavigationMenu = () => {
               active={!!matchRoute({ to: '/repositories/$repositoryId/all-owners' })}
             >
               <Link to='/repositories/$repositoryId/all-owners' params={{ repositoryId: 'any' }}>
-                Repo owners (in development)
+                Repo owners
               </Link>
             </NavigationMenuLink>
           </NavigationMenuItem>

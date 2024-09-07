@@ -44,7 +44,8 @@ export function useAllCodeowners(branch: string | null) {
         ? getAllOwners(appConfigResponse.data.repositories[0], branch!)
         : null,
     enabled: !!branch && appConfigResponse.status === 'success',
-    refetchInterval: 1_000 * 60 * 15, // every 15 min
+    staleTime: 1_000 * 60 * 60, // every 60 min. Reloads request when you switch tabs, for example
+    refetchInterval: 1_000 * 60 * 30, // every 30 min
     refetchOnWindowFocus: false, // for now request is too heavy
   });
   return result;

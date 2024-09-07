@@ -87,8 +87,9 @@ function Codeowners() {
       <div className='mt-4'>
         {allCodeownersResponse.status === 'pending' && (
           <div>
-            Calculating codeowners tree. There is no optimizations, so it can take a long time to
-            calculate (around 5 minutes per 100k files)...
+            Calculating codeowners tree... There is lack of optimizations, so it can take a quite
+            long time to calculate codeowners for all repository files. For my mac M1 it takes
+            around 50 seconds per 100k files and codeowner file size 3k lines.
           </div>
         )}
         {allCodeownersResponse.status === 'error' && <div>Calculating codeowners tree error</div>}
