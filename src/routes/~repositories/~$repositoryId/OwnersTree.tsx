@@ -149,7 +149,9 @@ export const OwnersTree: React.FC<Props> = ({
               <Tooltip content={row.fullName}>
                 <span>{row.name}</span>
               </Tooltip>
-              <div className='ml-auto'>{row.owner}</div>
+              <div className='ml-auto flex gap-3'>
+                <span>{row.owner}</span>
+              </div>
             </div>
           );
         })}
@@ -158,34 +160,62 @@ export const OwnersTree: React.FC<Props> = ({
   );
 };
 
-/** Note, rows mutable */
+/**
+ * Note, rows mutable.
+ * @returns string meaning all files of this directory have the same codeowners. Probably empty
+ *   undefined in other case
+ */
 function addRows(
   rows: Row[],
   current: DirectoryOwners,
   indent: number,
   partialPath: string,
   isDirectoryExpanded: (fullName: string) => boolean,
-): void {
+): string | undefined {
   const isRoot = !current.name;
   const newPartialPath = partialPath ? `${partialPath}/${current.name}` : current.name;
   const isDirExpanded = isRoot ? true : isDirectoryExpanded(newPartialPath);
+  let currentDirectoryItem: null | Row = null;
   if (!isRoot) {
-    rows.push({
+    currentDirectoryItem = {
       isFile: false,
       name: current.name,
       fullName: newPartialPath,
       owner: current.owner ?? '',
       indent,
       expanded: isDirExpanded,
-    });
+    };
+    rows.push(currentDirectoryItem);
   }
 
-  if (isDirExpanded) {
-    current.directories.forEach(dir => {
-      addRows(rows, dir, indent + 1, newPartialPath, isDirectoryExpanded);
-    });
+  // Null means no owners set yet, undefined means multiple owners, string means all owners is same (probably empty)
+  let owners: null | undefined | string = null;
+  const updateOwners = (subOwners: string | undefined): string | undefined => {
+    if (owners === undefined) {
+      return undefined; // Multiple owners already. Leave as is
+    }
+    if (owners === null) {
+      return subOwners;
+    }
+    if (subOwners === undefined) {
+      return undefined; // some subfolder has multiple owners
+    }
+    return owners === subOwners ? owners : undefined;
+  };
+  current.directories.forEach(dir => {
+    const subDirOwners = addRows(
+      // In case isDirExpanded===false we don't need to put result to rows. We only need an subDirOwners
+      isDirExpanded ? rows : [],
+      dir,
+      indent + 1,
+      newPartialPath,
+      isDirectoryExpanded,
+    );
+    owners = updateOwners(subDirOwners);
+  });
 
-    current.files.forEach(file => {
+  current.files.forEach(file => {
+    if (isDirExpanded) {
       rows.push({
         isFile: true,
         name: file.name,
@@ -194,6 +224,12 @@ function addRows(
         indent: indent + 1,
         expanded: false,
       });
-    });
+    }
+    owners = updateOwners(file.owner ? file.owner : undefined); // handle empty owner
+  });
+
+  if (currentDirectoryItem) {
+    currentDirectoryItem.owner = owners ? owners : '';
   }
+  return owners ? owners : undefined;
 }
