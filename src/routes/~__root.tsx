@@ -1,6 +1,7 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { HeaderNavigationMenu } from './HeaderNavigationMenu';
 import React from 'react';
+import { AppUpdater } from './AppUpdater';
 
 const TanStackRouterDevtools =
   process.env.NODE_ENV === 'production'
@@ -20,6 +21,7 @@ export const Route = createRootRoute({
       <main className='mx-6 mb-6'>
         <Outlet />
       </main>
+      <AppUpdater />
       <React.Suspense>
         <TanStackRouterDevtools />
       </React.Suspense>

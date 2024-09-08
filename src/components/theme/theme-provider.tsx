@@ -22,7 +22,6 @@ export const ThemeProviderContext = createContext<ThemeProviderState>(initialSta
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const appConfigResponse = useAppConfig();
   const appConfigUpdate = useUpdateAppConfig();
-
   const theme =
     appConfigResponse.status === 'success'
       ? appConfigResponse.data.theme.colorTheme
@@ -33,7 +32,6 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       return;
     }
     const root = window.document.documentElement;
-
     root.classList.remove('light', 'dark');
 
     if (theme === 'system') {
