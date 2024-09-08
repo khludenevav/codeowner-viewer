@@ -55,7 +55,7 @@ function Codeowners() {
 
   return (
     <div className='flex flex-col'>
-      <span>Pick a branch and below you will see an owners for each file in the repo.</span>
+      <span>Pick a branch and explore owners in tree view format for each file of the repo.</span>
       <div className='flex gap-2 justify-between mt-2 mb-2'>
         <VirtualizedCombobox
           options={branchOptions}

@@ -10,6 +10,7 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { UnfoldVertical, FoldVertical, ArrowLeftRight, BadgeCheck } from 'lucide-react';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { cn } from '@/utils/components-utils';
+import { getVSIFileIcon, getVSIFolderIcon } from 'file-extension-icon-js';
 
 type Row = {
   isFile: boolean;
@@ -167,10 +168,11 @@ export const OwnersTree: React.FC<Props> = ({
         {virtualOptions.map(item => {
           const row = rows[item.index];
           const expanded = expandedDirectoriesSet.has(row.fullName);
+          const fileNameForIcon = row.fullName.split('/').at(-1)!;
           return (
             <div
               key={item.key}
-              className='flex gap-3 group items-center hover:bg-zinc-200 dark:hover:bg-slate-800  rounded-md px-2'
+              className='grid items-center group gap-6 grid-cols-2 hover:bg-zinc-200 dark:hover:bg-slate-800  rounded-md px-2'
               style={{
                 position: 'absolute',
                 top: 0,
@@ -180,34 +182,7 @@ export const OwnersTree: React.FC<Props> = ({
                 transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
               }}
             >
-              {/* Just to adjust space for files */}
-              {row.isFile && <div className='h-5 w-5 invisible' />}
-              {!row.isFile && expanded && (
-                <Tooltip content="Expand directory and all it's children">
-                  <CollapseExpandIcon
-                    mode='collapse'
-                    onClick={() => onCollapseAllDirectory(row.fullName)}
-                  />
-                </Tooltip>
-              )}
-              {!row.isFile && !expanded && (
-                <Tooltip content="Collapse directory and it's children">
-                  <CollapseExpandIcon
-                    mode='expand'
-                    onClick={() => onExpandAllDirectory(row.fullName)}
-                  />
-                </Tooltip>
-              )}
-              <ExpandDirButton
-                expanded={expanded}
-                onChange={newExpanded => onExpandClick(row.fullName, newExpanded)}
-                style={{ marginLeft: `${16 * row.indent}px` }}
-                className={row.isFile ? 'invisible' : undefined}
-              />
-              <Tooltip content={row.fullName} side='top' align='start'>
-                <span className='flex-grow'>{row.name}</span>
-              </Tooltip>
-              <div className='ml-auto flex gap-3'>
+              <div className='flex gap-3 items-center justify-end'>
                 {!row.isFile && !row.owner ? (
                   <Tooltip
                     delayDuration={0}
@@ -225,7 +200,7 @@ export const OwnersTree: React.FC<Props> = ({
                   </Tooltip>
                 ) : (
                   <>
-                    <span className='ml-auto gap-3'>{row.owner}</span>
+                    <span className='gap-3'>{row.owner}</span>
                     <Tooltip
                       delayDuration={0}
                       content={
@@ -243,6 +218,48 @@ export const OwnersTree: React.FC<Props> = ({
                     </Tooltip>
                   </>
                 )}
+              </div>
+
+              <div className='flex items-center'>
+                {/* Just to adjust space for files */}
+                {row.isFile && <div className='h-5 w-5 invisible' />}
+                {!row.isFile &&
+                  (expanded ? (
+                    <Tooltip content="Expand directory and all it's children">
+                      <CollapseExpandIcon
+                        mode='collapse'
+                        onClick={() => onCollapseAllDirectory(row.fullName)}
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Tooltip content="Collapse directory and it's children">
+                      <CollapseExpandIcon
+                        mode='expand'
+                        onClick={() => onExpandAllDirectory(row.fullName)}
+                      />
+                    </Tooltip>
+                  ))}
+
+                <ExpandDirButton
+                  className={row.isFile ? 'invisible' : undefined}
+                  expanded={expanded}
+                  onChange={newExpanded => onExpandClick(row.fullName, newExpanded)}
+                  style={{ marginLeft: `${6 + 16 * row.indent}px` }}
+                />
+                <img
+                  className='ml-0.5 hover:cursor-pointer'
+                  src={
+                    // I prefer identical icons over different ones for directories
+                    row.isFile ? getVSIFileIcon(fileNameForIcon) : getVSIFolderIcon('f', expanded)
+                  }
+                  onClick={
+                    row.isFile ? undefined : () => onExpandClick(row.fullName, !row.expanded)
+                  }
+                  width='20px'
+                />
+                <Tooltip content={row.fullName} side='top' align='start'>
+                  <span className='flex-grow ml-1'>{row.name}</span>
+                </Tooltip>
               </div>
             </div>
           );

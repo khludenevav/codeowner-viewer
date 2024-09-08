@@ -1,7 +1,9 @@
+- For "Repo owners" tab add ability to filter only files for specific owner
 - on FileOwners tab show exact line which determines owner for particular file
-- make a tab with all files in tree list and corresponding owners
-- support multi repositories
+- add sticky header
+- add icons for files/dirs
+- support adding several repositories
 - repo statistic
   - how many lines
   - lines per extension
-  - lines per codeowner
+  - lines per owner
