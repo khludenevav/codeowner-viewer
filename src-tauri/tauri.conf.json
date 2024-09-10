@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "Codeowners viewer",
-    "version": "0.9.0"
+    "version": "0.9.1"
   },
   "tauri": {
     "allowlist": {
@@ -49,6 +49,12 @@
         "renameFile": false,
         "scope": ["$DATA/*", "$APPCONFIG/*"],
         "writeFile": true
+      },
+      "process": {
+        "all": false,
+        "exit": false,
+        "relaunch": true,
+        "relaunchDangerousAllowSymlinkMacos": false
       }
     },
     "bundle": {
