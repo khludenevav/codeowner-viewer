@@ -18,25 +18,26 @@ import {
 } from '@/utils/all-owners';
 import { OwnersTree } from './OwnersTree';
 import { UseQueryResult } from '@tanstack/react-query';
+import { OwnersFilter } from './OwnersFilter';
 
 export const Route = createFileRoute('/repositories/$repositoryId/all-owners')({
   component: Codeowners,
 });
 
 function splitToOwners(owners: string | null): string[] {
-  return owners ? owners.split(' ') : [];
+  return owners ? owners.replace(',', '').split(' ') : [];
 }
 
 function useFilteredRoot(
   allCodeownersResponse: UseQueryResult<DirectoryOwners | null, Error>,
-  filteredOwners: Set<string>,
+  filteredOwners: Set<string> | null,
 ): DirectoryOwners | null {
   return useMemo(() => {
     if (allCodeownersResponse.status !== 'success' || !allCodeownersResponse.data) {
       return null;
     }
     const root = allCodeownersResponse.data;
-    if (filteredOwners.size === 0) {
+    if (filteredOwners === null) {
       return root;
     }
     const filterFiles = (files: FileOwners[]): FileOwners[] => {
@@ -75,7 +76,8 @@ function Codeowners() {
   const branchesResponse = useBranches();
 
   const updateBranchesList = useUpdateBranches();
-  const [filteredOwners, setFilteredOwners] = useState<Set<string>>(new Set<string>());
+  /** null means all selected */
+  const [filteredOwners, setFilteredOwners] = useState<Set<string> | null>(null);
   const allOwnersSet: Set<string> = useMemo(() => {
     const result: Set<string> = new Set();
     if (allCodeownersResponse.status === 'success' && allCodeownersResponse.data) {
@@ -90,14 +92,6 @@ function Codeowners() {
     }
     return result;
   }, [allCodeownersResponse.data, allCodeownersResponse.status]);
-
-  useEffect(() => {
-    setFilteredOwners(prev => {
-      const newFilteredOwners = new Set<string>(prev);
-      newFilteredOwners.add(Array.from(allOwnersSet.values())[0]);
-      return newFilteredOwners;
-    });
-  }, [allOwnersSet]);
 
   useEffect(() => {
     if (branchesResponse.status === 'success') {
@@ -128,14 +122,24 @@ function Codeowners() {
     <div className='flex flex-col'>
       <span>Pick a branch and explore owners in tree view format for each file of the repo.</span>
       <div className='flex gap-2 justify-between mt-2 mb-2'>
-        <VirtualizedCombobox
-          options={branchOptions}
-          selectedOption={selectedBranchOption}
-          selectedChanged={setSelectedBranchOption}
-          searchPlaceholder='Select branch ...'
-          height='400px'
-          disabled={branchesResponse.status !== 'success'}
-        />
+        <div className='flex gap-2'>
+          <VirtualizedCombobox
+            options={branchOptions}
+            selectedOption={selectedBranchOption}
+            selectedChanged={setSelectedBranchOption}
+            searchPlaceholder='Select branch ...'
+            height='400px'
+            disabled={branchesResponse.status !== 'success'}
+          />
+
+          {allOwnersSet.size > 0 && (
+            <OwnersFilter
+              allOwnersSet={allOwnersSet}
+              filteredOwners={filteredOwners}
+              setFilteredOwners={setFilteredOwners}
+            />
+          )}
+        </div>
 
         <div className='flex gap-2 items-center'>
           <Tooltip content='Update branches list'>
