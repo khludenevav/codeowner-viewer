@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { type AppConfig } from '../../../app-config/app-config';
 import { useAppConfig } from '../../../app-config/useAppConfig';
@@ -10,12 +10,58 @@ import { Button } from '@/components/ui/button';
 import { dayjs } from '@/utils/dayjs';
 import { Tooltip } from '@/components/ui/tooltip';
 import { RefreshIcon } from '@/components/icons/refresh-icon';
-import { useAllCodeowners, useUpdateAllCodeowners } from '@/utils/all-owners';
+import {
+  DirectoryOwners,
+  FileOwners,
+  useAllCodeowners,
+  useUpdateAllCodeowners,
+} from '@/utils/all-owners';
 import { OwnersTree } from './OwnersTree';
+import { UseQueryResult } from '@tanstack/react-query';
 
 export const Route = createFileRoute('/repositories/$repositoryId/all-owners')({
   component: Codeowners,
 });
+
+function splitToOwners(owners: string | null): string[] {
+  return owners ? owners.split(' ') : [];
+}
+
+function useFilteredRoot(
+  allCodeownersResponse: UseQueryResult<DirectoryOwners | null, Error>,
+  filteredOwners: Set<string>,
+): DirectoryOwners | null {
+  return useMemo(() => {
+    if (allCodeownersResponse.status !== 'success' || !allCodeownersResponse.data) {
+      return null;
+    }
+    const root = allCodeownersResponse.data;
+    if (filteredOwners.size === 0) {
+      return root;
+    }
+    const filterFiles = (files: FileOwners[]): FileOwners[] => {
+      return files.filter(f => splitToOwners(f.owner).some(o => filteredOwners.has(o)));
+    };
+    /** @return null when it is empty (no files and no dirs) */
+    const filterDir = (dir: DirectoryOwners): DirectoryOwners | null => {
+      const files = filterFiles(dir.files);
+      const directories = filterDirs(dir.directories);
+      return files.length || directories.length
+        ? {
+            ...dir,
+            files,
+            directories,
+          }
+        : null;
+    };
+    /** @return no empty directories */
+    const filterDirs = (directories: DirectoryOwners[]): DirectoryOwners[] => {
+      return directories.map(d => filterDir(d)).filter(d => !!d);
+    };
+
+    return { ...root, directories: filterDirs(root.directories), files: filterFiles(root.files) };
+  }, [allCodeownersResponse.data, allCodeownersResponse.status, filteredOwners]);
+}
 
 function Codeowners() {
   const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
@@ -29,6 +75,29 @@ function Codeowners() {
   const branchesResponse = useBranches();
 
   const updateBranchesList = useUpdateBranches();
+  const [filteredOwners, setFilteredOwners] = useState<Set<string>>(new Set<string>());
+  const allOwnersSet: Set<string> = useMemo(() => {
+    const result: Set<string> = new Set();
+    if (allCodeownersResponse.status === 'success' && allCodeownersResponse.data) {
+      const addForDirectory = (dir: DirectoryOwners) => {
+        splitToOwners(dir.owner).forEach(o => result.add(o));
+        dir.directories.forEach(d => addForDirectory(d));
+        dir.files.forEach(file => {
+          splitToOwners(file.owner).forEach(o => result.add(o));
+        });
+      };
+      addForDirectory(allCodeownersResponse.data);
+    }
+    return result;
+  }, [allCodeownersResponse.data, allCodeownersResponse.status]);
+
+  useEffect(() => {
+    setFilteredOwners(prev => {
+      const newFilteredOwners = new Set<string>(prev);
+      newFilteredOwners.add(Array.from(allOwnersSet.values())[0]);
+      return newFilteredOwners;
+    });
+  }, [allOwnersSet]);
 
   useEffect(() => {
     if (branchesResponse.status === 'success') {
@@ -44,6 +113,8 @@ function Codeowners() {
     selectedBranchOption,
     setSelectedBranchOption,
   ]);
+
+  const filteredRoot = useFilteredRoot(allCodeownersResponse, filteredOwners);
 
   if (!appConfig) {
     return 'Loading app config...';
@@ -96,14 +167,16 @@ function Codeowners() {
         {allCodeownersResponse.status === 'success' && !allCodeownersResponse.data && (
           <div>Calculating codeowners tree done, but list is empty</div>
         )}
-        {allCodeownersResponse.status === 'success' && allCodeownersResponse.data && (
-          <OwnersTree
-            root={allCodeownersResponse.data}
-            dataUpdatedAt={allCodeownersResponse.dataUpdatedAt}
-            updateAllCodeowners={updateAllCodeowners}
-            allCodeownersResponseFetchStatus={allCodeownersResponse.fetchStatus}
-          />
-        )}
+        {allCodeownersResponse.status === 'success' &&
+          allCodeownersResponse.data &&
+          filteredRoot && (
+            <OwnersTree
+              root={filteredRoot}
+              dataUpdatedAt={allCodeownersResponse.dataUpdatedAt}
+              updateAllCodeowners={updateAllCodeowners}
+              allCodeownersResponseFetchStatus={allCodeownersResponse.fetchStatus}
+            />
+          )}
       </div>
     </div>
   );
