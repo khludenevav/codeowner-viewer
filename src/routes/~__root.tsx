@@ -15,12 +15,14 @@ const TanStackRouterDevtools =
 export const Route = createRootRoute({
   component: () => (
     <>
-      <header className='px-6 mb-6 mt-6'>
-        <HeaderNavigationMenu />
-      </header>
-      <main className='mx-6 mb-6'>
-        <Outlet />
-      </main>
+      <div className='max-h-dvh overflow-y-hidden flex flex-col'>
+        <header className='px-6 pt-6'>
+          <HeaderNavigationMenu />
+        </header>
+        <main className='flex-1 overflow-y-auto overscroll-none' id='main'>
+          <Outlet />
+        </main>
+      </div>
       <AppUpdater />
       <React.Suspense>
         <TanStackRouterDevtools />

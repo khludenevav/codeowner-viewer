@@ -53,40 +53,41 @@ function Codeowners() {
   }
 
   return (
-    <div className='flex flex-col'>
-      <span>
-        Pick a branch name to get the codeowners for changed files comparing with 'main' branch.
-      </span>
+    <div className='flex flex-col mx-6 mb-6 max-h-full'>
+      <div className='sticky top-0 z-[1] bg-background pt-6'>
+        <span>
+          Pick a branch name to get the codeowners for changed files comparing with 'main' branch.
+        </span>
 
-      <div className='flex gap-2 justify-between mt-2 mb-6'>
-        <VirtualizedCombobox
-          options={branchOptions}
-          selectedOption={selectedBranchOption}
-          selectedChanged={setSelectedBranchOption}
-          searchPlaceholder='Select branch ...'
-          height='400px'
-          disabled={branchesResponse.status !== 'success'}
-        />
+        <div className='flex gap-2 justify-between mt-2 mb-6'>
+          <VirtualizedCombobox
+            options={branchOptions}
+            selectedOption={selectedBranchOption}
+            selectedChanged={setSelectedBranchOption}
+            searchPlaceholder='Select branch ...'
+            height='400px'
+            disabled={branchesResponse.status !== 'success'}
+          />
 
-        <div className='flex gap-2 items-center'>
-          <Tooltip content='Update branches list'>
-            <Button
-              variant='ghost'
-              size='icon'
-              loading={branchesResponse.fetchStatus === 'fetching'}
-              onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
-            >
-              <RefreshIcon className='[animation-duration:2500ms]' />
-            </Button>
-          </Tooltip>
-          <span className='text-sm'>
-            Branch list updated
-            <br />
-            at {dayjs(branchesResponse.dataUpdatedAt).format('HH:mm:ss')}
-          </span>
+          <div className='flex gap-2 items-center'>
+            <Tooltip content='Update branches list'>
+              <Button
+                variant='ghost'
+                size='icon'
+                loading={branchesResponse.fetchStatus === 'fetching'}
+                onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
+              >
+                <RefreshIcon className='[animation-duration:2500ms]' />
+              </Button>
+            </Tooltip>
+            <span className='text-sm'>
+              Branch list updated
+              <br />
+              at {dayjs(branchesResponse.dataUpdatedAt).format('HH:mm:ss')}
+            </span>
+          </div>
         </div>
       </div>
-
       {branchCodeownersResponse.status === 'pending' && <div>Calculating codeowners...</div>}
       {branchCodeownersResponse.status === 'error' && <div>Calculating codeowners error</div>}
       {branchCodeownersResponse.data && (

@@ -78,48 +78,50 @@ function Codeowners() {
   }
 
   return (
-    <div className='flex flex-col'>
-      <span>Pick a branch and a file in that branch to get this file codeowners.</span>
+    <div className='flex flex-col mx-6 mb-6 max-h-full'>
+      <div className='sticky top-0 z-[1] bg-background pt-6'>
+        <span>Pick a branch and a file in that branch to get this file codeowners.</span>
 
-      <div className='flex gap-2 justify-between mt-2 mb-2'>
-        <VirtualizedCombobox
-          options={branchOptions}
-          selectedOption={selectedBranchOption}
-          selectedChanged={setSelectedBranchOption}
-          searchPlaceholder='Select branch ...'
-          height='400px'
-          disabled={branchesResponse.status !== 'success'}
-        />
+        <div className='flex gap-2 justify-between mt-2 mb-2'>
+          <VirtualizedCombobox
+            options={branchOptions}
+            selectedOption={selectedBranchOption}
+            selectedChanged={setSelectedBranchOption}
+            searchPlaceholder='Select branch ...'
+            height='400px'
+            disabled={branchesResponse.status !== 'success'}
+          />
 
-        <div className='flex gap-2 items-center'>
-          <Tooltip content='Update branches list'>
-            <Button
-              variant='ghost'
-              size='icon'
-              loading={branchesResponse.fetchStatus === 'fetching'}
-              onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
-            >
-              <RefreshIcon className='[animation-duration:2500ms]' />
-            </Button>
-          </Tooltip>
-          <span className='text-sm'>
-            Branch list updated
-            <br />
-            at {dayjs(branchesResponse.dataUpdatedAt).format('HH:mm:ss')}
-          </span>
+          <div className='flex gap-2 items-center'>
+            <Tooltip content='Update branches list'>
+              <Button
+                variant='ghost'
+                size='icon'
+                loading={branchesResponse.fetchStatus === 'fetching'}
+                onClick={branchesResponse.fetchStatus === 'idle' ? updateBranchesList : undefined}
+              >
+                <RefreshIcon className='[animation-duration:2500ms]' />
+              </Button>
+            </Tooltip>
+            <span className='text-sm'>
+              Branch list updated
+              <br />
+              at {dayjs(branchesResponse.dataUpdatedAt).format('HH:mm:ss')}
+            </span>
+          </div>
         </div>
-      </div>
 
-      <div className='flex gap-2 justify-between mt-2 mb-6'>
-        <VirtualizedCombobox
-          options={branchFilesOptions}
-          selectedOption={selectedFileOption}
-          selectedChanged={setSelectedFileOption}
-          searchPlaceholder='Select file ...'
-          disabled={filesResponse.status !== 'success'}
-          height='600px'
-          className='min-w-[600px]'
-        />
+        <div className='flex gap-2 justify-between mt-2 mb-6'>
+          <VirtualizedCombobox
+            options={branchFilesOptions}
+            selectedOption={selectedFileOption}
+            selectedChanged={setSelectedFileOption}
+            searchPlaceholder='Select file ...'
+            disabled={filesResponse.status !== 'success'}
+            height='600px'
+            className='min-w-[600px]'
+          />
+        </div>
       </div>
 
       {fileCodeownersResponse.status === 'pending' && <div>Calculating codeowners...</div>}

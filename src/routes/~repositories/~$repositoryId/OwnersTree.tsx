@@ -6,7 +6,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { DirectoryOwners } from '@/utils/all-owners';
 import { dayjs } from '@/utils/dayjs';
 import { FetchStatus } from '@tanstack/react-query';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { UnfoldVertical, FoldVertical, ArrowLeftRight, BadgeCheck } from 'lucide-react';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { cn } from '@/utils/components-utils';
@@ -46,11 +46,17 @@ export const OwnersTree: React.FC<Props> = ({
     return rows;
   }, [expandedDirectoriesSet, root]);
 
-  const virtualizer = useWindowVirtualizer({
+  const scrollContainer = document.getElementById('main'); // not very efficient. Ideally replace to ref
+  const scrollMargin =
+    treeRef.current != null && scrollContainer != null
+      ? treeRef.current.offsetTop - scrollContainer.offsetTop
+      : 0;
+  const virtualizer = useVirtualizer({
     count: rows.length,
     estimateSize: () => 24,
     overscan: 7,
-    scrollMargin: treeRef.current?.offsetTop ?? 0,
+    getScrollElement: () => scrollContainer,
+    scrollMargin,
     getItemKey: index => rows[index].fullName,
   });
   const virtualOptions = virtualizer.getVirtualItems();
