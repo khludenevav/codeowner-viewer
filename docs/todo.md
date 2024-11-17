@@ -1,4 +1,4 @@
-- For "Repo owners" tab add ability to filter only files for specific owner
+- Improve auto update - handle errors of relaunch, install and update
 - on FileOwners tab show exact line which determines owner for particular file
 - add sticky header
 - support adding several repositories
