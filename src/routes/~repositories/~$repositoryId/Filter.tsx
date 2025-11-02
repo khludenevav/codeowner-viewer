@@ -121,7 +121,7 @@ export const Filter: React.FC<Props> = ({
             </Button>
           </div>
           <div className='flex-1 overflow-y-auto'>
-            <Table>
+            <Table className='table-fixed w-full'>
               <TableCaption>A list of repository file extensions</TableCaption>
               <TableHeader>
                 <TableRow>
@@ -144,7 +144,7 @@ export const Filter: React.FC<Props> = ({
                 {filteredEntityRows.map(entity => {
                   return (
                     <TableRow key={entity} onClick={() => toggleSelection(entity)}>
-                      <TableCell>
+                      <TableCell className='align-top'>
                         <Checkbox
                           onClick={e => {
                             // or else TableRow will be called after onCheckedChange and reset checkbox state back
@@ -154,7 +154,7 @@ export const Filter: React.FC<Props> = ({
                           onCheckedChange={() => toggleSelection(entity)}
                         />
                       </TableCell>
-                      <TableCell>{entity}</TableCell>
+                      <TableCell className='break-words'>{entity}</TableCell>
                     </TableRow>
                   );
                 })}
