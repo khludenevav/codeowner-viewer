@@ -60,7 +60,7 @@ jobs:
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'App v__VERSION__'
-          releaseBody: 'Make sticky header/filters. Add icon.'
+          releaseBody: 'Implemented filter by extension and export filtered tree to json.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
