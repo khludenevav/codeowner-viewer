@@ -2,7 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::{collections::HashMap, process::Command};
 pub mod codeowners_file_parser;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{SerializeStruct, Serializer};
+use serde::Serialize;
+use tauri::Manager;
 
 extern crate pretty_assertions;
 
@@ -27,8 +29,14 @@ fn get_branch_files(abs_repo_path: &str, branch: &str) -> String {
 
 /** Return all files in the repo for passed branch */
 #[tauri::command(async)]
-fn get_all_codeowners_for_branch(abs_repo_path: &str, branch: &str) -> String {
-    let all_owners = get_all_codeowners_for_branch_struct(abs_repo_path, branch);
+fn get_all_codeowners_for_branch(
+    app_handle: tauri::AppHandle,
+    abs_repo_path: &str,
+    branch: &str,
+    session_id: &str,
+) -> String {
+    let all_owners =
+        get_all_codeowners_for_branch_struct(app_handle, abs_repo_path, branch, session_id);
     serde_json::to_string(&all_owners).unwrap()
 }
 
@@ -146,6 +154,13 @@ fn get_joined_codeowners(
     }
 }
 
+#[derive(Serialize, Clone)]
+struct AllCodeownersProgressPayload {
+    files_handled: u32,
+    files_total: u32,
+    session_id: String,
+}
+
 struct FrontendCodeowner {
     /// Codeowners
     owners: String,
@@ -165,7 +180,12 @@ impl Serialize for FrontendCodeowner {
     }
 }
 
-fn get_all_codeowners_for_branch_struct(abs_repo_path: &str, branch: &str) -> DirectoryOwners {
+fn get_all_codeowners_for_branch_struct(
+    app_handle: tauri::AppHandle,
+    abs_repo_path: &str,
+    branch: &str,
+    session_id: &str,
+) -> DirectoryOwners {
     let codeowners_content = get_codeowners_content(abs_repo_path, branch);
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     let files = get_branch_files_vector(abs_repo_path, branch);
@@ -178,6 +198,14 @@ fn get_all_codeowners_for_branch_struct(abs_repo_path: &str, branch: &str) -> Di
 
     for (file_index, file_path) in files.iter().enumerate() {
         if file_index % 100 == 0 {
+            let payload = AllCodeownersProgressPayload {
+                files_handled: file_index as u32,
+                files_total: files.len() as u32,
+                session_id: session_id.to_string(),
+            };
+            app_handle
+                .emit_all("all-codeowners-progress", payload)
+                .unwrap();
             println!("handled {file_index} from {}", files.len());
         }
         // if file_index > 2000 {

@@ -10,6 +10,7 @@ import { TooltipProvider } from './components/ui/tooltip';
 import { appWindow } from '@tauri-apps/api/window';
 import { TauriEvent } from '@tauri-apps/api/event';
 import { Toaster } from '@/components/ui/sonner';
+import { WebViewSessionIdProvider } from './utils/WebViewSessionIdProvider';
 // Create a new router instance
 const router = createRouter({ routeTree });
 
@@ -49,14 +50,16 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <QueryClientProvider client={QUERY_CLIENT}>
-        <ThemeProvider>
-          <TooltipProvider>
-            <RouterProvider router={router} />
-            <Toaster />
-          </TooltipProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
+      <WebViewSessionIdProvider>
+        <QueryClientProvider client={QUERY_CLIENT}>
+          <ThemeProvider>
+            <TooltipProvider>
+              <RouterProvider router={router} />
+              <Toaster />
+            </TooltipProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </WebViewSessionIdProvider>
     </React.StrictMode>,
   );
 }

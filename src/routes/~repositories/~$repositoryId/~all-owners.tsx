@@ -21,6 +21,7 @@ import { UseQueryResult } from '@tanstack/react-query';
 import { Filter } from './Filter';
 import { getFileExtension } from './utils';
 import { ExportToFileButton } from './ExportToFile';
+import { AllCodeownersFetchProgress } from './AllCodeownersFetchProgress';
 
 export const Route = createFileRoute('/repositories/$repositoryId/all-owners')({
   component: Codeowners,
@@ -215,11 +216,7 @@ function Codeowners() {
       </div>
       <div className='mt-4'>
         {allCodeownersResponse.status === 'pending' && (
-          <div>
-            Calculating codeowners tree... There is lack of optimizations, so it can take a quite
-            long time to calculate codeowners for all repository files. For my mac M1 it takes
-            around 50 seconds per 100k files and codeowner file size 3k lines.
-          </div>
+          <AllCodeownersFetchProgress branch={normalizedSelectedBranch} />
         )}
         {allCodeownersResponse.status === 'error' && <div>Calculating codeowners tree error</div>}
         {allCodeownersResponse.status === 'success' && !allCodeownersResponse.data && (
