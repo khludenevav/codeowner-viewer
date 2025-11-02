@@ -23,45 +23,52 @@ import { CheckedState } from '@radix-ui/react-checkbox';
 import React, { useCallback, useMemo, useState } from 'react';
 
 type Props = {
-  allOwnersSet: Set<string>;
-  filteredOwners: Set<string> | null;
-  setFilteredOwners: React.Dispatch<React.SetStateAction<Set<string> | null>>;
+  allEntitiesSet: Set<string>;
+  filteredEntities: Set<string> | null;
+  setFilteredEntities: React.Dispatch<React.SetStateAction<Set<string> | null>>;
+  entityName: string;
 };
 
-export const OwnersFilter: React.FC<Props> = ({
-  allOwnersSet,
-  filteredOwners,
-  setFilteredOwners,
+export const Filter: React.FC<Props> = ({
+  allEntitiesSet,
+  filteredEntities,
+  setFilteredEntities,
+  entityName,
 }) => {
   const [localFilterValue, setLocalFilterValue] = useState('');
-  const [localFilteredOwners, setLocalFilteredOwners] = useState<Set<string>>(new Set<string>());
-  const allSortedOwners = useMemo(() => Array.from(allOwnersSet.values()).sort(), [allOwnersSet]);
+  const [localFilteredEntities, setLocalFilteredEntities] = useState<Set<string>>(
+    new Set<string>(),
+  );
+  const allSortedEntities = useMemo(
+    () => Array.from(allEntitiesSet.values()).sort(),
+    [allEntitiesSet],
+  );
   const initLocalState = useCallback(() => {
-    setLocalFilteredOwners(new Set(filteredOwners ?? allSortedOwners));
+    setLocalFilteredEntities(new Set(filteredEntities ?? allSortedEntities));
     setLocalFilterValue('');
-  }, [allSortedOwners, filteredOwners]);
+  }, [allSortedEntities, filteredEntities]);
 
   const applyChanges = useCallback(() => {
-    setFilteredOwners(
-      localFilteredOwners.size === 0 || localFilteredOwners.size === allSortedOwners.length
+    setFilteredEntities(
+      localFilteredEntities.size === 0 || localFilteredEntities.size === allSortedEntities.length
         ? null
-        : new Set(localFilteredOwners),
+        : new Set(localFilteredEntities),
     );
-  }, [allSortedOwners.length, localFilteredOwners, setFilteredOwners]);
+  }, [allSortedEntities.length, localFilteredEntities, setFilteredEntities]);
 
-  const filteredOwnerRows = useMemo(() => {
+  const filteredEntityRows = useMemo(() => {
     const search = localFilterValue.toLowerCase();
-    return allSortedOwners.filter(o => o.toLowerCase().includes(search));
-  }, [allSortedOwners, localFilterValue]);
-  const toggleOwnerState = useCallback((owner: string) => {
-    setLocalFilteredOwners(prev => {
-      const localFilteredOwners = new Set<string>(prev);
-      if (!prev.has(owner)) {
-        localFilteredOwners.add(owner);
+    return allSortedEntities.filter(o => o.toLowerCase().includes(search));
+  }, [allSortedEntities, localFilterValue]);
+  const toggleSelection = useCallback((entity: string) => {
+    setLocalFilteredEntities(prev => {
+      const localFilteredEntities = new Set<string>(prev);
+      if (!prev.has(entity)) {
+        localFilteredEntities.add(entity);
       } else {
-        localFilteredOwners.delete(owner);
+        localFilteredEntities.delete(entity);
       }
-      return localFilteredOwners;
+      return localFilteredEntities;
     });
   }, []);
 
@@ -70,8 +77,8 @@ export const OwnersFilter: React.FC<Props> = ({
   }, []);
 
   function getMasterCheckBoxState(): CheckedState {
-    if (localFilteredOwners.size > 0) {
-      if (localFilteredOwners.size === allSortedOwners.length) {
+    if (localFilteredEntities.size > 0) {
+      if (localFilteredEntities.size === allSortedEntities.length) {
         return true;
       }
       return 'indeterminate';
@@ -82,21 +89,21 @@ export const OwnersFilter: React.FC<Props> = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button disabled={!allSortedOwners.length} variant='outline' onClick={initLocalState}>
-          {filteredOwners === null || filteredOwners.size === 0
-            ? 'Filter by owner...'
-            : `${filteredOwners.size}/${allSortedOwners.length} owners filtered`}
+        <Button disabled={!allSortedEntities.length} variant='outline' onClick={initLocalState}>
+          {filteredEntities === null || filteredEntities.size === 0
+            ? `Filter by ${entityName}...`
+            : `${filteredEntities.size}/${allSortedEntities.length} ${entityName} filtered`}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Filter repo tree by owners</DialogTitle>
+          <DialogTitle>Filter repo tree by {entityName}</DialogTitle>
         </DialogHeader>
         <div className='h-[70vh] flex flex-col'>
           <div className='my-4 mx-1.5 flex gap-2'>
             <Input
               type='search'
-              placeholder='Filter by owner...'
+              placeholder='Filter by extension...'
               value={localFilterValue}
               onChange={onFilterChange}
               autoFocus
@@ -109,7 +116,7 @@ export const OwnersFilter: React.FC<Props> = ({
           </div>
           <div className='flex-1 overflow-y-auto'>
             <Table>
-              <TableCaption>A list of repository codeowners.</TableCaption>
+              <TableCaption>A list of repository file extensions</TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead className='w-[30px]'>
@@ -117,31 +124,31 @@ export const OwnersFilter: React.FC<Props> = ({
                       checked={getMasterCheckBoxState()}
                       onCheckedChange={newState => {
                         if (newState) {
-                          setLocalFilteredOwners(new Set(allSortedOwners));
+                          setLocalFilteredEntities(new Set(allSortedEntities));
                         } else {
-                          setLocalFilteredOwners(new Set());
+                          setLocalFilteredEntities(new Set());
                         }
                       }}
                     />
                   </TableHead>
-                  <TableHead>Owner</TableHead>
+                  <TableHead>File extension</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOwnerRows.map(owner => {
+                {filteredEntityRows.map(entity => {
                   return (
-                    <TableRow key={owner} onClick={() => toggleOwnerState(owner)}>
+                    <TableRow key={entity} onClick={() => toggleSelection(entity)}>
                       <TableCell>
                         <Checkbox
                           onClick={e => {
                             // or else TableRow will be called after onCheckedChange and reset checkbox state back
                             e.stopPropagation();
                           }}
-                          checked={localFilteredOwners.has(owner)}
-                          onCheckedChange={() => toggleOwnerState(owner)}
+                          checked={localFilteredEntities.has(entity)}
+                          onCheckedChange={() => toggleSelection(entity)}
                         />
                       </TableCell>
-                      <TableCell>{owner}</TableCell>
+                      <TableCell>{entity}</TableCell>
                     </TableRow>
                   );
                 })}

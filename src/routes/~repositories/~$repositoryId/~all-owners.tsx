@@ -18,7 +18,8 @@ import {
 } from '@/utils/all-owners';
 import { OwnersTree } from './OwnersTree';
 import { UseQueryResult } from '@tanstack/react-query';
-import { OwnersFilter } from './OwnersFilter';
+import { Filter } from './Filter';
+import { getFileExtension } from './utils';
 
 export const Route = createFileRoute('/repositories/$repositoryId/all-owners')({
   component: Codeowners,
@@ -28,40 +29,65 @@ function splitToOwners(owners: string | null): string[] {
   return owners ? owners.replace(',', '').split(' ') : [];
 }
 
+/** filters files by passed predicate */
+function filterBy(
+  newRoot: DirectoryOwners,
+  fileFilter: (file: FileOwners) => boolean,
+): DirectoryOwners {
+  const filterFiles = (files: FileOwners[]): FileOwners[] => {
+    return files.filter(fileFilter);
+  };
+  /** @return null when it is empty (no files and no dirs) */
+  const filterDir = (dir: DirectoryOwners): DirectoryOwners | null => {
+    const files = filterFiles(dir.files);
+    const directories = filterDirs(dir.directories);
+    return files.length || directories.length
+      ? {
+          ...dir,
+          files,
+          directories,
+        }
+      : null;
+  };
+  /** @return no empty directories */
+  const filterDirs = (directories: DirectoryOwners[]): DirectoryOwners[] => {
+    return directories.map(d => filterDir(d)).filter(d => !!d);
+  };
+
+  return {
+    ...newRoot,
+    directories: filterDirs(newRoot.directories),
+    files: filterFiles(newRoot.files),
+  };
+}
+
 function useFilteredRoot(
   allCodeownersResponse: UseQueryResult<DirectoryOwners | null, Error>,
   filteredOwners: Set<string> | null,
+  filteredExtensions: Set<string> | null,
 ): DirectoryOwners | null {
   return useMemo(() => {
     if (allCodeownersResponse.status !== 'success' || !allCodeownersResponse.data) {
       return null;
     }
     const root = allCodeownersResponse.data;
-    if (filteredOwners === null) {
+    if (filteredOwners === null && filteredExtensions === null) {
       return root;
     }
-    const filterFiles = (files: FileOwners[]): FileOwners[] => {
-      return files.filter(f => splitToOwners(f.owner).some(o => filteredOwners.has(o)));
-    };
-    /** @return null when it is empty (no files and no dirs) */
-    const filterDir = (dir: DirectoryOwners): DirectoryOwners | null => {
-      const files = filterFiles(dir.files);
-      const directories = filterDirs(dir.directories);
-      return files.length || directories.length
-        ? {
-            ...dir,
-            files,
-            directories,
-          }
-        : null;
-    };
-    /** @return no empty directories */
-    const filterDirs = (directories: DirectoryOwners[]): DirectoryOwners[] => {
-      return directories.map(d => filterDir(d)).filter(d => !!d);
-    };
-
-    return { ...root, directories: filterDirs(root.directories), files: filterFiles(root.files) };
-  }, [allCodeownersResponse.data, allCodeownersResponse.status, filteredOwners]);
+    let newRoot = root;
+    if (filteredOwners !== null) {
+      newRoot = filterBy(newRoot, f => splitToOwners(f.owner).some(o => filteredOwners.has(o)));
+    }
+    if (filteredExtensions !== null) {
+      newRoot = filterBy(newRoot, f => filteredExtensions.has(getFileExtension(f.name)));
+    }
+    return newRoot;
+  }, [
+    allCodeownersResponse.data,
+    allCodeownersResponse.status,
+    filteredExtensions,
+    filteredOwners,
+  ]);
 }
 
 function Codeowners() {
@@ -93,6 +119,20 @@ function Codeowners() {
     return result;
   }, [allCodeownersResponse.data, allCodeownersResponse.status]);
 
+  /** null means all selected */
+  const [filteredExtensions, setFilteredExtensions] = useState<Set<string> | null>(null);
+  const allFileExtensionsSet: Set<string> = useMemo(() => {
+    const result: Set<string> = new Set();
+    if (allCodeownersResponse.status === 'success' && allCodeownersResponse.data) {
+      const addForDirectory = (dir: DirectoryOwners) => {
+        dir.files.forEach(fileInfo => result.add(getFileExtension(fileInfo.name)));
+        dir.directories.forEach(d => addForDirectory(d));
+      };
+      addForDirectory(allCodeownersResponse.data);
+    }
+    return result;
+  }, [allCodeownersResponse.data, allCodeownersResponse.status]);
+
   useEffect(() => {
     if (branchesResponse.status === 'success') {
       const { branches, headOption } = makeBranchOptions(branchesResponse.data);
@@ -108,7 +148,7 @@ function Codeowners() {
     setSelectedBranchOption,
   ]);
 
-  const filteredRoot = useFilteredRoot(allCodeownersResponse, filteredOwners);
+  const filteredRoot = useFilteredRoot(allCodeownersResponse, filteredOwners, filteredExtensions);
 
   if (!appConfig) {
     return 'Loading app config...';
@@ -135,10 +175,19 @@ function Codeowners() {
             />
 
             {allOwnersSet.size > 0 && (
-              <OwnersFilter
-                allOwnersSet={allOwnersSet}
-                filteredOwners={filteredOwners}
-                setFilteredOwners={setFilteredOwners}
+              <Filter
+                allEntitiesSet={allOwnersSet}
+                filteredEntities={filteredOwners}
+                setFilteredEntities={setFilteredOwners}
+                entityName='owner'
+              />
+            )}
+            {allFileExtensionsSet.size > 0 && (
+              <Filter
+                allEntitiesSet={allFileExtensionsSet}
+                filteredEntities={filteredExtensions}
+                setFilteredEntities={setFilteredExtensions}
+                entityName='file extension'
               />
             )}
           </div>

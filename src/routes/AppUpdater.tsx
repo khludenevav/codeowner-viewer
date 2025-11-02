@@ -24,6 +24,10 @@ export const AppUpdater: React.FC = () => {
     setEvents([]);
     // Install the update. This will also restart the app on Windows.
     await installUpdate();
+    setEvents(prev => [
+      ...prev,
+      { error: 'Error in restarting app automatically. Restart manually.', status: 'DONE' },
+    ]);
     // On macOS and Linux we need to restart the app manually.
     await relaunch();
   }, []);
