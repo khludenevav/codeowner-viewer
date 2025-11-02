@@ -20,6 +20,7 @@ import { OwnersTree } from './OwnersTree';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Filter } from './Filter';
 import { getFileExtension } from './utils';
+import { ExportToFileButton } from './ExportToFile';
 
 export const Route = createFileRoute('/repositories/$repositoryId/all-owners')({
   component: Codeowners,
@@ -190,6 +191,7 @@ function Codeowners() {
                 entityName='file extension'
               />
             )}
+            {filteredRoot && <ExportToFileButton filteredRoot={filteredRoot} />}
           </div>
 
           <div className='flex gap-2 items-center'>

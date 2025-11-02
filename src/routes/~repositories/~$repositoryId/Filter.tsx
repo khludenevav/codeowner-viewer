@@ -89,7 +89,13 @@ export const Filter: React.FC<Props> = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button disabled={!allSortedEntities.length} variant='outline' onClick={initLocalState}>
+        <Button
+          disabled={!allSortedEntities.length}
+          variant={
+            filteredEntities === null || filteredEntities.size === 0 ? 'outline' : 'secondary'
+          }
+          onClick={initLocalState}
+        >
           {filteredEntities === null || filteredEntities.size === 0
             ? `Filter by ${entityName}...`
             : `${filteredEntities.size}/${allSortedEntities.length} ${entityName} filtered`}

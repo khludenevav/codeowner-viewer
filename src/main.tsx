@@ -9,7 +9,7 @@ import { ThemeProvider } from './components/theme/theme-provider';
 import { TooltipProvider } from './components/ui/tooltip';
 import { appWindow } from '@tauri-apps/api/window';
 import { TauriEvent } from '@tauri-apps/api/event';
-
+import { Toaster } from '@/components/ui/sonner';
 // Create a new router instance
 const router = createRouter({ routeTree });
 
@@ -53,6 +53,7 @@ if (!rootElement.innerHTML) {
         <ThemeProvider>
           <TooltipProvider>
             <RouterProvider router={router} />
+            <Toaster />
           </TooltipProvider>
         </ThemeProvider>
       </QueryClientProvider>
