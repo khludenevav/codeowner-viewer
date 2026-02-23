@@ -206,7 +206,6 @@ fn get_all_codeowners_for_branch_struct(
             app_handle
                 .emit_all("all-codeowners-progress", payload)
                 .unwrap();
-            println!("handled {file_index} from {}", files.len());
         }
         // if file_index > 2000 {
         //     break; // TODO: we need speedup algorithm. Now it is too long. Uncomment for quick debugging.
