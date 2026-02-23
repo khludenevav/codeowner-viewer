@@ -40,8 +40,8 @@ function Codeowners() {
       return branchCodeownersResponseData;
     }
 
-    const ownerRe = ownerFilterDebounced ? new RegExp(`.*${ownerFilterDebounced}.*`) : null;
-    const fileRe = fileFilterDebounced ? new RegExp(`.*${fileFilterDebounced}.*`) : null;
+    const ownerRe = ownerFilterDebounced ? new RegExp(`.*${ownerFilterDebounced}.*`, 'i') : null;
+    const fileRe = fileFilterDebounced ? new RegExp(`.*${fileFilterDebounced}.*`, 'i') : null;
 
     const result = new Map<string, string[]>();
     for (const [owner, files] of branchCodeownersResponseData.entries()) {
@@ -117,6 +117,7 @@ function Codeowners() {
                 value={ownerFilter}
                 onChange={e => setOwnerFilter(e.target.value)}
                 className={ownerFilter ? 'pr-7' : ''}
+                autoComplete='off'
               />
               {ownerFilter && (
                 <button
@@ -134,6 +135,7 @@ function Codeowners() {
                 value={fileFilter}
                 onChange={e => setFileFilter(e.target.value)}
                 className={fileFilter ? 'pr-7' : ''}
+                autoComplete='off'
               />
               {fileFilter && (
                 <button
