@@ -60,7 +60,7 @@ jobs:
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'App v__VERSION__'
-          releaseBody: 'Added filter by owner and file.'
+          releaseBody: 'Added support for comments.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
