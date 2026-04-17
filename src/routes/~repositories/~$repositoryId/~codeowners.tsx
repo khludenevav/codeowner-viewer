@@ -1,13 +1,14 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import { type AppConfig } from '../../../app-config/app-config';
-import { useBranchCodeowners, useUpdateBranchCodeowners } from '../../../utils/codeowners-command';
+import { type BranchFile, useBranchCodeowners, useUpdateBranchCodeowners } from '../../../utils/codeowners-command';
 import { useAppConfig } from '../../../app-config/useAppConfig';
 import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-combobox';
 import { makeBranchOptions, useBranches, useUpdateBranches } from '@/utils/get-branches';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { dayjs } from '@/utils/dayjs';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -18,6 +19,39 @@ export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
   component: Codeowners,
 });
 
+function CodeownersOutput({
+  data,
+  showComments,
+}: {
+  data: Map<string, BranchFile[]>;
+  showComments: boolean;
+}) {
+  const entries = Array.from(data.entries());
+  return (
+    <pre className='text-sm text-neutral-900 dark:text-neutral-400'>
+      {'{\n'}
+      {entries.map(([owner, files], ownerIdx) => (
+        <Fragment key={owner || '__unowned__'}>
+          {`  "${owner}": [\n`}
+          {files.map((file, fileIdx) => (
+            <span key={file.path}>
+              {`    "${file.path}"${fileIdx < files.length - 1 ? ',' : ''}`}
+              {showComments && file.comment && (
+                <span className='select-none text-amber-600 dark:text-amber-400'>
+                  {'  '}{file.comment}
+                </span>
+              )}
+              {'\n'}
+            </span>
+          ))}
+          {`  ]${ownerIdx < entries.length - 1 ? ',' : ''}\n`}
+        </Fragment>
+      ))}
+      {'}'}
+    </pre>
+  );
+}
+
 function Codeowners() {
   const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
   const [selectedBranchOption, setSelectedBranchOption] = useState<ComboboxOption | null>(null);
@@ -25,6 +59,8 @@ function Codeowners() {
   const [fileFilter, setFileFilter] = useState('');
   const [ownerFilterDebounced, setOwnerFilterDebounced] = useState('');
   const [fileFilterDebounced, setFileFilterDebounced] = useState('');
+  const [showComments, setShowComments] = useState(false);
+  const [onlyWithComments, setOnlyWithComments] = useState(false);
   const appConfigResponse = useAppConfig();
   const appConfig: AppConfig | undefined = appConfigResponse.data;
 
@@ -43,16 +79,18 @@ function Codeowners() {
     const ownerRe = ownerFilterDebounced ? new RegExp(`.*${ownerFilterDebounced}.*`, 'i') : null;
     const fileRe = fileFilterDebounced ? new RegExp(`.*${fileFilterDebounced}.*`, 'i') : null;
 
-    const result = new Map<string, string[]>();
-    for (const [owner, files] of branchCodeownersResponseData.entries()) {
-      if (ownerRe && !ownerRe.test(owner)) {
-        continue;
-      }
-      const filteredFiles = fileRe ? files.filter(f => fileRe.test(f)) : files;
-      result.set(owner, filteredFiles);
-    }
+    const result = new Map(
+      Array.from(branchCodeownersResponseData.entries())
+        .filter(([owner]) => !ownerRe || ownerRe.test(owner))
+        .map(([owner, files]) => [
+          owner,
+          files
+            .filter(f => !fileRe || fileRe.test(f.path))
+            .filter(f => !onlyWithComments || !!f.comment),
+        ]),
+    );
     return result;
-  }, [branchCodeownersResponseData, ownerFilterDebounced, fileFilterDebounced]);
+  }, [branchCodeownersResponseData, ownerFilterDebounced, fileFilterDebounced, onlyWithComments]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -146,6 +184,30 @@ function Codeowners() {
                 </button>
               )}
             </div>
+
+            <div className='flex flex-col justify-center gap-1'>
+              <label className='flex items-center gap-1 text-xs cursor-pointer select-none'>
+                <Checkbox
+                  className='h-3.5 w-3.5'
+                  checked={showComments}
+                  onCheckedChange={v => {
+                    const next = v === true;
+                    setShowComments(next);
+                    if (!next) setOnlyWithComments(false);
+                  }}
+                />
+                Show comments
+              </label>
+              <label className='flex items-center gap-1 text-xs cursor-pointer select-none'>
+                <Checkbox
+                  className='h-3.5 w-3.5'
+                  checked={onlyWithComments}
+                  disabled={!showComments}
+                  onCheckedChange={v => setOnlyWithComments(v === true)}
+                />
+                Only with comments
+              </label>
+            </div>
           </div>
           <div className='flex gap-2 items-center flex-shrink-0'>
             <Tooltip content='Update branches list'>
@@ -193,9 +255,7 @@ function Codeowners() {
                 <RefreshIcon className='[animation-duration:2500ms]' />
               </Button>
             </Tooltip>
-            <pre className='text-sm text-neutral-900 dark:text-neutral-400'>
-              {JSON.stringify(Object.fromEntries(filteredData.entries()), null, 2)}
-            </pre>
+            <CodeownersOutput data={filteredData} showComments={showComments} />
           </div>
         </div>
       )}

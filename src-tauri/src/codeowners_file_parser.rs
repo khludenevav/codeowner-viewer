@@ -98,7 +98,7 @@ impl FromStr for Owner {
 /// Mappings of owners to path patterns
 #[derive(Debug, PartialEq)]
 pub struct Owners {
-    paths: Vec<(Pattern, Vec<Owner>)>,
+    paths: Vec<(Pattern, Vec<Owner>, Option<String>)>,
 }
 
 impl Owners {
@@ -110,7 +110,7 @@ impl Owners {
         self.paths
             .iter()
             .filter_map(|mapping| {
-                let &(ref pattern, ref owners) = mapping;
+                let (pattern, owners, _) = mapping;
                 let opts = glob::MatchOptions {
                     case_sensitive: false,
                     require_literal_separator: pattern.as_str().contains('/'),
@@ -140,6 +140,41 @@ impl Owners {
             })
             .next()
     }
+
+    /// Resolve the inline comment (e.g. `#!required`) for the CODEOWNERS rule matching a given path.
+    /// Returns `None` if no rule matches or the matching rule has no `#!` comment.
+    pub fn comment_of<P>(&self, path: P) -> Option<&str>
+    where
+        P: AsRef<Path>,
+    {
+        for (pattern, _, comment) in &self.paths {
+            let opts = glob::MatchOptions {
+                case_sensitive: false,
+                require_literal_separator: pattern.as_str().contains('/'),
+                require_literal_leading_dot: false,
+            };
+            let matches = if pattern.matches_path_with(path.as_ref(), opts) {
+                true
+            } else if pattern.as_str().ends_with("/*") {
+                false
+            } else {
+                let mut p = path.as_ref();
+                let mut found = false;
+                while let Some(parent) = p.parent() {
+                    if pattern.matches_path_with(parent, opts) {
+                        found = true;
+                        break;
+                    }
+                    p = parent;
+                }
+                found
+            };
+            if matches {
+                return comment.as_deref();
+            }
+        }
+        None
+    }
 }
 
 /// Parse a CODEOWNERS file from some readable source
@@ -158,7 +193,16 @@ where
         .filter_map(Result::ok)
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .fold(Vec::new(), |mut paths, line| {
-            let mut elements = line.split_whitespace();
+            // Extract inline #! comment (e.g. `#!required`) from the line
+            let comment = line.find('#').and_then(|pos| {
+                let c = line[pos..].trim();
+                if c.starts_with("#!") { Some(c.to_string()) } else { None }
+            });
+            let line_content = match line.find('#') {
+                Some(pos) => &line[..pos],
+                None => line.as_str(),
+            };
+            let mut elements = line_content.split_whitespace();
             if let Some(pattern) = elements.next() {
                 let owners = elements.fold(Vec::new(), |mut result, owner| {
                     if let Ok(owner) = owner.parse() {
@@ -166,7 +210,7 @@ where
                     }
                     result
                 });
-                paths.push((make_pattern(pattern), owners))
+                paths.push((make_pattern(pattern), owners, comment))
             }
             paths
         });
@@ -262,36 +306,19 @@ apps/ @octocat
             owners,
             Owners {
                 paths: vec![
-                    (
-                        Pattern::new("docs/**").unwrap(),
-                        vec![Owner::Username("@doctocat".into())]
-                    ),
-                    (
-                        Pattern::new("**/apps/**").unwrap(),
-                        vec![Owner::Username("@octocat".into())]
-                    ),
-                    (
-                        Pattern::new("**/docs/*").unwrap(),
-                        vec![Owner::Email("docs@example.com".into())]
-                    ),
-                    (
-                        Pattern::new("build/logs/**").unwrap(),
-                        vec![Owner::Username("@doctocat".into())]
-                    ),
-                    (
-                        Pattern::new("*.go").unwrap(),
-                        vec![Owner::Email("docs@example.com".into())]
-                    ),
-                    (
-                        Pattern::new("*.js").unwrap(),
-                        vec![Owner::Username("@js-owner".into())]
-                    ),
+                    (Pattern::new("docs/**").unwrap(), vec![Owner::Username("@doctocat".into())], None),
+                    (Pattern::new("**/apps/**").unwrap(), vec![Owner::Username("@octocat".into())], None),
+                    (Pattern::new("**/docs/*").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
+                    (Pattern::new("build/logs/**").unwrap(), vec![Owner::Username("@doctocat".into())], None),
+                    (Pattern::new("*.go").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
+                    (Pattern::new("*.js").unwrap(), vec![Owner::Username("@js-owner".into())], None),
                     (
                         Pattern::new("*").unwrap(),
                         vec![
                             Owner::Username("@global-owner1".into()),
                             Owner::Username("@global-owner2".into()),
-                        ]
+                        ],
+                        None,
                     ),
                 ],
             }

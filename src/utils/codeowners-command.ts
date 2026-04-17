@@ -4,21 +4,23 @@ import { useAppConfig } from '@/app-config/useAppConfig';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
+export type BranchFile = { path: string; comment: string | null };
+
 async function getBranchDifference(
   repository: Repositories,
   branch: string,
-): Promise<null | Map<string, string[]>> {
+): Promise<null | Map<string, BranchFile[]>> {
   const owners = (await invoke('get_changed_codeowners_for_branch', {
     branch,
     absRepoPath: repository.repoPath,
   })) as string;
   // We pass it as list in order to get always the same data in the same order.
-  const parsedOwners = JSON.parse(owners) as { owners: string; files: string[] }[];
+  const parsedOwners = JSON.parse(owners) as { owners: string; files: BranchFile[] }[];
 
   return parsedOwners.reduce((acc, item) => {
     acc.set(item.owners, item.files);
     return acc;
-  }, new Map<string, string[]>());
+  }, new Map<string, BranchFile[]>());
 }
 
 function getBranchCodeownersQueryKey(branch: string | null) {

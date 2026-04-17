@@ -55,18 +55,20 @@ fn get_changed_codeowners_for_branch(abs_repo_path: &str, branch: &str) -> Strin
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     let branch_diff = get_branch_diff(abs_repo_path, branch);
 
-    let mut owners_dictionary: HashMap<String, Vec<String>> = HashMap::new();
+    let mut owners_dictionary: HashMap<String, Vec<FrontendFile>> = HashMap::new();
     for file_path in branch_diff.split("\n") {
         if file_path.is_empty() {
             // it is for latest line
             continue;
         }
         let owner_team = get_joined_codeowners(codeowners.of(file_path));
+        let comment = codeowners.comment_of(file_path).map(|s| s.to_string());
+        let frontend_file = FrontendFile { path: file_path.to_string(), comment };
 
         owners_dictionary
             .entry(owner_team.unwrap_or(String::new()))
-            .and_modify(|e| e.push(file_path.to_string()))
-            .or_insert(vec![file_path.to_string()]);
+            .and_modify(|e| e.push(FrontendFile { path: frontend_file.path.clone(), comment: frontend_file.comment.clone() }))
+            .or_insert(vec![frontend_file]);
     }
     let mut result: Vec<FrontendCodeowner> = owners_dictionary
         .into_iter()
@@ -161,10 +163,15 @@ struct AllCodeownersProgressPayload {
     session_id: String,
 }
 
+#[derive(Serialize)]
+struct FrontendFile {
+    path: String,
+    comment: Option<String>,
+}
+
 struct FrontendCodeowner {
-    /// Codeowners
     owners: String,
-    files: Vec<String>,
+    files: Vec<FrontendFile>,
 }
 
 impl Serialize for FrontendCodeowner {
@@ -172,7 +179,6 @@ impl Serialize for FrontendCodeowner {
     where
         S: Serializer,
     {
-        // 2 is the number of fields in the struct.
         let mut state = serializer.serialize_struct("FrontendCodeowner", 2)?;
         state.serialize_field("owners", &self.owners)?;
         state.serialize_field("files", &self.files)?;
