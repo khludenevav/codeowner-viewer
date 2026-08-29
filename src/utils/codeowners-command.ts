@@ -1,6 +1,5 @@
 import { Repositories } from '../app-config/app-config';
 import { invoke } from '@tauri-apps/api';
-import { useAppConfig } from '@/app-config/useAppConfig';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
@@ -23,28 +22,25 @@ async function getBranchDifference(
   }, new Map<string, BranchFile[]>());
 }
 
-function getBranchCodeownersQueryKey(branch: string | null) {
-  return ['branch', branch ?? '', 'codeowners'];
+function getBranchCodeownersQueryKey(repositoryId: string | null, branch: string | null) {
+  return ['repo', repositoryId ?? '', 'branch', branch ?? '', 'codeowners'];
 }
 
-export function useBranchCodeowners(branch: string | null) {
-  const appConfigResponse = useAppConfig();
-
+export function useBranchCodeowners(repository: Repositories | null, branch: string | null) {
   const result = useQuery({
-    queryKey: getBranchCodeownersQueryKey(branch),
-    queryFn: () =>
-      appConfigResponse.status === 'success'
-        ? getBranchDifference(appConfigResponse.data.repositories[0], branch!)
-        : null,
-    enabled: !!branch && appConfigResponse.status === 'success',
+    queryKey: getBranchCodeownersQueryKey(repository?.id ?? null, branch),
+    queryFn: () => (repository ? getBranchDifference(repository, branch!) : null),
+    enabled: !!branch && !!repository,
     refetchInterval: 1_000 * 60 * 5, // every 5 min
   });
   return result;
 }
 
-export function useUpdateBranchCodeowners(branch: string | null) {
+export function useUpdateBranchCodeowners(repository: Repositories | null, branch: string | null) {
   const queryClient = useQueryClient();
   return useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: getBranchCodeownersQueryKey(branch) });
-  }, [branch, queryClient]);
+    queryClient.invalidateQueries({
+      queryKey: getBranchCodeownersQueryKey(repository?.id ?? null, branch),
+    });
+  }, [branch, queryClient, repository?.id]);
 }

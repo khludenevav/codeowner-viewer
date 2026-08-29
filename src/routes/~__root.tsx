@@ -16,7 +16,7 @@ export const Route = createRootRoute({
   component: () => (
     <>
       <div className='max-h-dvh overflow-y-hidden flex flex-col'>
-        <header className='px-6 pt-6'>
+        <header className='pt-2'>
           <HeaderNavigationMenu />
         </header>
         <main className='flex-1 overflow-y-auto overscroll-none' id='main'>

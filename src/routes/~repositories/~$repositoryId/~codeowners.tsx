@@ -2,9 +2,10 @@ import { createFileRoute, Navigate } from '@tanstack/react-router';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
-import { type AppConfig } from '../../../app-config/app-config';
 import { type BranchFile, useBranchCodeowners, useUpdateBranchCodeowners } from '../../../utils/codeowners-command';
 import { useAppConfig } from '../../../app-config/useAppConfig';
+import { useCurrentRepository } from '../../../app-config/useCurrentRepository';
+import { Repositories } from '../../../app-config/app-config';
 import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-combobox';
 import { makeBranchOptions, useBranches, useUpdateBranches } from '@/utils/get-branches';
 import { Button } from '@/components/ui/button';
@@ -14,9 +15,10 @@ import { dayjs } from '@/utils/dayjs';
 import { Tooltip } from '@/components/ui/tooltip';
 import { RefreshIcon } from '@/components/icons/refresh-icon';
 import { X } from 'lucide-react';
+import { useRepositoryPageState } from '@/utils/hooks/useRepositoryPageState';
 
 export const Route = createFileRoute('/repositories/$repositoryId/codeowners')({
-  component: Codeowners,
+  component: CodeownersRoute,
 });
 
 function CodeownersOutput({
@@ -52,24 +54,67 @@ function CodeownersOutput({
   );
 }
 
-function Codeowners() {
-  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
-  const [selectedBranchOption, setSelectedBranchOption] = useState<ComboboxOption | null>(null);
-  const [ownerFilter, setOwnerFilter] = useState('');
-  const [fileFilter, setFileFilter] = useState('');
-  const [ownerFilterDebounced, setOwnerFilterDebounced] = useState('');
-  const [fileFilterDebounced, setFileFilterDebounced] = useState('');
-  const [showComments, setShowComments] = useState(false);
-  const [onlyWithComments, setOnlyWithComments] = useState(false);
+function CodeownersRoute() {
   const appConfigResponse = useAppConfig();
-  const appConfig: AppConfig | undefined = appConfigResponse.data;
+  const currentRepository = useCurrentRepository();
 
-  const branchesResponse = useBranches();
-  const updateBranchesList = useUpdateBranches();
+  if (!appConfigResponse.data) {
+    return 'Loading app config...';
+  }
+
+  if (currentRepository.status === 'no-repositories') {
+    return <Navigate to='/' />;
+  }
+
+  if (currentRepository.status === 'not-found') {
+    return (
+      <Navigate
+        to='/repositories/$repositoryId/codeowners'
+        params={{ repositoryId: appConfigResponse.data.repositories[0].id }}
+      />
+    );
+  }
+
+  if (currentRepository.status !== 'ready') {
+    return null;
+  }
+
+  return <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />;
+}
+
+function Codeowners({ repository }: { repository: Repositories }) {
+  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
+  const [selectedBranchOption, setSelectedBranchOption] =
+    useRepositoryPageState<ComboboxOption | null>('codeowners.selectedBranchOption', null);
+  const [ownerFilter, setOwnerFilter] = useRepositoryPageState<string>(
+    'codeowners.ownerFilter',
+    '',
+  );
+  const [fileFilter, setFileFilter] = useRepositoryPageState<string>(
+    'codeowners.fileFilter',
+    '',
+  );
+  const [ownerFilterDebounced, setOwnerFilterDebounced] = useState(() =>
+    ownerFilter.length >= 2 ? ownerFilter : '',
+  );
+  const [fileFilterDebounced, setFileFilterDebounced] = useState(() =>
+    fileFilter.length >= 2 ? fileFilter : '',
+  );
+  const [showComments, setShowComments] = useRepositoryPageState<boolean>(
+    'codeowners.showComments',
+    false,
+  );
+  const [onlyWithComments, setOnlyWithComments] = useRepositoryPageState<boolean>(
+    'codeowners.onlyWithComments',
+    false,
+  );
+
+  const branchesResponse = useBranches(repository);
+  const updateBranchesList = useUpdateBranches(repository);
 
   const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
-  const branchCodeownersResponse = useBranchCodeowners(normalizedSelectedBranch);
-  const updateBranchCodeowners = useUpdateBranchCodeowners(normalizedSelectedBranch);
+  const branchCodeownersResponse = useBranchCodeowners(repository, normalizedSelectedBranch);
+  const updateBranchCodeowners = useUpdateBranchCodeowners(repository, normalizedSelectedBranch);
   const branchCodeownersResponseData = branchCodeownersResponse.data;
   const filteredData = useMemo(() => {
     if (!branchCodeownersResponseData) {
@@ -110,8 +155,6 @@ function Codeowners() {
     if (branchesResponse.status === 'success') {
       const { branches, headOption } = makeBranchOptions(branchesResponse.data);
       setBranchOptions(branches);
-      setOwnerFilter('');
-      setFileFilter('');
       if (!selectedBranchOption) {
         setSelectedBranchOption(headOption);
       }
@@ -122,14 +165,6 @@ function Codeowners() {
     selectedBranchOption,
     setSelectedBranchOption,
   ]);
-
-  if (!appConfig) {
-    return 'Loading app config...';
-  }
-
-  if (appConfig.repositories.length === 0) {
-    return <Navigate to='/settings' />;
-  }
 
   return (
     <div className='flex flex-col mx-6 mb-6 max-h-full'>

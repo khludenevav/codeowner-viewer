@@ -1,7 +1,6 @@
 import { Repositories } from '@/app-config/app-config';
 import { Command } from '@tauri-apps/api/shell';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAppConfig } from '@/app-config/useAppConfig';
 import { useCallback } from 'react';
 import { ComboboxOption } from '@/components/ui/virtual-combobox';
 
@@ -62,28 +61,25 @@ async function getBranches(repository: Repositories): Promise<Branches> {
   };
 }
 
-const branchesQueryKey = ['branches'];
+function getBranchesQueryKey(repositoryId: string | null) {
+  return ['repo', repositoryId ?? '', 'branches'];
+}
 
-export function useBranches() {
-  const appConfigResponse = useAppConfig();
-
+export function useBranches(repository: Repositories | null) {
   const result = useQuery({
-    queryKey: branchesQueryKey,
-    queryFn: () =>
-      appConfigResponse.status === 'success'
-        ? getBranches(appConfigResponse.data.repositories[0])
-        : NO_BRANCHES,
-    enabled: appConfigResponse.status === 'success',
+    queryKey: getBranchesQueryKey(repository?.id ?? null),
+    queryFn: () => (repository ? getBranches(repository) : NO_BRANCHES),
+    enabled: !!repository,
     refetchInterval: 1_000 * 60 * 5, // every 5 min
   });
   return result;
 }
 
-export function useUpdateBranches() {
+export function useUpdateBranches(repository: Repositories | null) {
   const queryClient = useQueryClient();
   const updateBranches = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: branchesQueryKey });
-  }, [queryClient]);
+    queryClient.invalidateQueries({ queryKey: getBranchesQueryKey(repository?.id ?? null) });
+  }, [queryClient, repository?.id]);
   return updateBranches;
 }
 

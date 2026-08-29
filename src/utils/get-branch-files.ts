@@ -1,6 +1,5 @@
 import { Repositories } from '@/app-config/app-config';
 import { useQuery } from '@tanstack/react-query';
-import { useAppConfig } from '@/app-config/useAppConfig';
 import { ComboboxOption } from '@/components/ui/virtual-combobox';
 import { invoke } from '@tauri-apps/api';
 
@@ -13,20 +12,15 @@ async function getBranchFiles(repository: Repositories, branch: string | null): 
   return JSON.parse(owners) as string[];
 }
 
-function getQueryKeyForBranchFiles(branch: string | null) {
-  return ['branches', branch];
+function getQueryKeyForBranchFiles(repositoryId: string | null, branch: string | null) {
+  return ['repo', repositoryId ?? '', 'branches', branch];
 }
 
-export function useBranchFiles(branch: string | null) {
-  const appConfigResponse = useAppConfig();
-
+export function useBranchFiles(repository: Repositories | null, branch: string | null) {
   const result = useQuery({
-    queryKey: getQueryKeyForBranchFiles(branch),
-    queryFn: () =>
-      appConfigResponse.status === 'success'
-        ? getBranchFiles(appConfigResponse.data.repositories[0], branch)
-        : [],
-    enabled: !!branch && appConfigResponse.status === 'success',
+    queryKey: getQueryKeyForBranchFiles(repository?.id ?? null, branch),
+    queryFn: () => (repository ? getBranchFiles(repository, branch) : []),
+    enabled: !!branch && !!repository,
     refetchInterval: 1_000 * 60 * 5, // every 5 min
   });
   return result;

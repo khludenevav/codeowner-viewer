@@ -11,18 +11,12 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/~__root'
-import { Route as SettingsImport } from './routes/~settings'
 import { Route as IndexImport } from './routes/~index'
 import { Route as RepositoriesRepositoryIdFileOwnerImport } from './routes/~repositories/~$repositoryId/~file-owner'
 import { Route as RepositoriesRepositoryIdCodeownersImport } from './routes/~repositories/~$repositoryId/~codeowners'
 import { Route as RepositoriesRepositoryIdAllOwnersImport } from './routes/~repositories/~$repositoryId/~all-owners'
 
 // Create/Update Routes
-
-const SettingsRoute = SettingsImport.update({
-  path: '/settings',
-  getParentRoute: () => rootRoute,
-} as any)
 
 const IndexRoute = IndexImport.update({
   path: '/',
@@ -58,13 +52,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsImport
-      parentRoute: typeof rootRoute
-    }
     '/repositories/$repositoryId/all-owners': {
       id: '/repositories/$repositoryId/all-owners'
       path: '/repositories/$repositoryId/all-owners'
@@ -93,7 +80,6 @@ declare module '@tanstack/react-router' {
 
 export const routeTree = rootRoute.addChildren({
   IndexRoute,
-  SettingsRoute,
   RepositoriesRepositoryIdAllOwnersRoute,
   RepositoriesRepositoryIdCodeownersRoute,
   RepositoriesRepositoryIdFileOwnerRoute,
@@ -108,7 +94,6 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "~__root.tsx",
       "children": [
         "/",
-        "/settings",
         "/repositories/$repositoryId/all-owners",
         "/repositories/$repositoryId/codeowners",
         "/repositories/$repositoryId/file-owner"
@@ -116,9 +101,6 @@ export const routeTree = rootRoute.addChildren({
     },
     "/": {
       "filePath": "~index.tsx"
-    },
-    "/settings": {
-      "filePath": "~settings.tsx"
     },
     "/repositories/$repositoryId/all-owners": {
       "filePath": "~repositories/~$repositoryId/~all-owners.tsx"

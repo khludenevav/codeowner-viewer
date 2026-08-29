@@ -2,8 +2,9 @@ import { createFileRoute, Navigate } from '@tanstack/react-router';
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { type AppConfig } from '../../../app-config/app-config';
 import { useAppConfig } from '../../../app-config/useAppConfig';
+import { useCurrentRepository } from '../../../app-config/useCurrentRepository';
+import { Repositories } from '../../../app-config/app-config';
 import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-combobox';
 import { makeBranchOptions, useBranches, useUpdateBranches } from '@/utils/get-branches';
 import { Button } from '@/components/ui/button';
@@ -22,9 +23,10 @@ import { Filter } from './Filter';
 import { getFileExtension } from './utils';
 import { ExportToFileButton } from './ExportToFile';
 import { AllCodeownersFetchProgress } from './AllCodeownersFetchProgress';
+import { useRepositoryPageState } from '@/utils/hooks/useRepositoryPageState';
 
 export const Route = createFileRoute('/repositories/$repositoryId/all-owners')({
-  component: Codeowners,
+  component: CodeownersRoute,
 });
 
 function splitToOwners(owners: string | null): string[] {
@@ -92,20 +94,50 @@ function useFilteredRoot(
   ]);
 }
 
-function Codeowners() {
-  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
-  const [selectedBranchOption, setSelectedBranchOption] = useState<ComboboxOption | null>(null);
+function CodeownersRoute() {
   const appConfigResponse = useAppConfig();
-  const appConfig: AppConfig | undefined = appConfigResponse.data;
+  const currentRepository = useCurrentRepository();
+
+  if (!appConfigResponse.data) {
+    return 'Loading app config...';
+  }
+
+  if (currentRepository.status === 'no-repositories') {
+    return <Navigate to='/' />;
+  }
+
+  if (currentRepository.status === 'not-found') {
+    return (
+      <Navigate
+        to='/repositories/$repositoryId/all-owners'
+        params={{ repositoryId: appConfigResponse.data.repositories[0].id }}
+      />
+    );
+  }
+
+  if (currentRepository.status !== 'ready') {
+    return null;
+  }
+
+  return <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />;
+}
+
+function Codeowners({ repository }: { repository: Repositories }) {
+  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
+  const [selectedBranchOption, setSelectedBranchOption] =
+    useRepositoryPageState<ComboboxOption | null>('all-owners.selectedBranchOption', null);
   const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
 
-  const allCodeownersResponse = useAllCodeowners(normalizedSelectedBranch);
-  const updateAllCodeowners = useUpdateAllCodeowners(normalizedSelectedBranch);
-  const branchesResponse = useBranches();
+  const allCodeownersResponse = useAllCodeowners(repository, normalizedSelectedBranch);
+  const updateAllCodeowners = useUpdateAllCodeowners(repository, normalizedSelectedBranch);
+  const branchesResponse = useBranches(repository);
 
-  const updateBranchesList = useUpdateBranches();
+  const updateBranchesList = useUpdateBranches(repository);
   /** null means all selected */
-  const [filteredOwners, setFilteredOwners] = useState<Set<string> | null>(null);
+  const [filteredOwners, setFilteredOwners] = useRepositoryPageState<Set<string> | null>(
+    'all-owners.filteredOwners',
+    null,
+  );
   const allOwnersSet: Set<string> = useMemo(() => {
     const result: Set<string> = new Set();
     if (allCodeownersResponse.status === 'success' && allCodeownersResponse.data) {
@@ -122,7 +154,10 @@ function Codeowners() {
   }, [allCodeownersResponse.data, allCodeownersResponse.status]);
 
   /** null means all selected */
-  const [filteredExtensions, setFilteredExtensions] = useState<Set<string> | null>(null);
+  const [filteredExtensions, setFilteredExtensions] = useRepositoryPageState<Set<string> | null>(
+    'all-owners.filteredExtensions',
+    null,
+  );
   const allFileExtensionsSet: Set<string> = useMemo(() => {
     const result: Set<string> = new Set();
     if (allCodeownersResponse.status === 'success' && allCodeownersResponse.data) {
@@ -151,14 +186,6 @@ function Codeowners() {
   ]);
 
   const filteredRoot = useFilteredRoot(allCodeownersResponse, filteredOwners, filteredExtensions);
-
-  if (!appConfig) {
-    return 'Loading app config...';
-  }
-
-  if (appConfig.repositories.length === 0) {
-    return <Navigate to='/settings' />;
-  }
 
   return (
     <div className='flex flex-col mx-6 mb-6 max-h-full'>
@@ -216,7 +243,7 @@ function Codeowners() {
       </div>
       <div className='mt-4'>
         {allCodeownersResponse.status === 'pending' && (
-          <AllCodeownersFetchProgress branch={normalizedSelectedBranch} />
+          <AllCodeownersFetchProgress repository={repository} branch={normalizedSelectedBranch} />
         )}
         {allCodeownersResponse.status === 'error' && <div>Calculating codeowners tree error</div>}
         {allCodeownersResponse.status === 'success' && !allCodeownersResponse.data && (

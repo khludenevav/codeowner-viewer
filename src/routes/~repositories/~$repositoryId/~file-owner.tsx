@@ -2,9 +2,10 @@ import { createFileRoute, Navigate } from '@tanstack/react-router';
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { type AppConfig } from '../../../app-config/app-config';
 import { useUpdateFileCodeowners } from '../../../utils/file-codeownets';
 import { useAppConfig } from '../../../app-config/useAppConfig';
+import { useCurrentRepository } from '../../../app-config/useCurrentRepository';
+import { Repositories } from '../../../app-config/app-config';
 import { ComboboxOption, VirtualizedCombobox } from '@/components/ui/virtual-combobox';
 import { makeBranchOptions, useBranches, useUpdateBranches } from '@/utils/get-branches';
 import { Button } from '@/components/ui/button';
@@ -13,33 +14,64 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { RefreshIcon } from '@/components/icons/refresh-icon';
 import { useFileCodeowners } from '@/utils/file-codeownets';
 import { makeBranchFilesOptions, useBranchFiles } from '@/utils/get-branch-files';
+import { useRepositoryPageState } from '@/utils/hooks/useRepositoryPageState';
 
 export const Route = createFileRoute('/repositories/$repositoryId/file-owner')({
-  component: Codeowners,
+  component: CodeownersRoute,
 });
 
-function Codeowners() {
-  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
-  const [selectedBranchOption, setSelectedBranchOption] = useState<ComboboxOption | null>(null);
-  const [selectedFileOption, setSelectedFileOption] = useState<ComboboxOption | null>(null);
+function CodeownersRoute() {
   const appConfigResponse = useAppConfig();
-  const appConfig: AppConfig | undefined = appConfigResponse.data;
+  const currentRepository = useCurrentRepository();
+
+  if (!appConfigResponse.data) {
+    return 'Loading app config...';
+  }
+
+  if (currentRepository.status === 'no-repositories') {
+    return <Navigate to='/' />;
+  }
+
+  if (currentRepository.status === 'not-found') {
+    return (
+      <Navigate
+        to='/repositories/$repositoryId/file-owner'
+        params={{ repositoryId: appConfigResponse.data.repositories[0].id }}
+      />
+    );
+  }
+
+  if (currentRepository.status !== 'ready') {
+    return null;
+  }
+
+  return <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />;
+}
+
+function Codeowners({ repository }: { repository: Repositories }) {
+  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
+  const [selectedBranchOption, setSelectedBranchOption] =
+    useRepositoryPageState<ComboboxOption | null>('file-owner.selectedBranchOption', null);
+  const [selectedFileOption, setSelectedFileOption] =
+    useRepositoryPageState<ComboboxOption | null>('file-owner.selectedFileOption', null);
   const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
   const normalizedSelectedFile = selectedFileOption?.value ?? null;
 
-  const branchesResponse = useBranches();
-  const filesResponse = useBranchFiles(normalizedSelectedBranch);
+  const branchesResponse = useBranches(repository);
+  const filesResponse = useBranchFiles(repository, normalizedSelectedBranch);
   const branchFilesOptions = useMemo(
     () => (filesResponse.status === 'success' ? makeBranchFilesOptions(filesResponse.data) : []),
     [filesResponse.data, filesResponse.status],
   );
-  const updateBranchesList = useUpdateBranches();
+  const updateBranchesList = useUpdateBranches(repository);
 
   const fileCodeownersResponse = useFileCodeowners(
+    repository,
     normalizedSelectedBranch,
     normalizedSelectedFile,
   );
   const updateFileCodeowners = useUpdateFileCodeowners(
+    repository,
     normalizedSelectedBranch,
     normalizedSelectedFile,
   );
@@ -67,15 +99,7 @@ function Codeowners() {
     ) {
       setSelectedFileOption(branchFilesOptions[0]);
     }
-  }, [branchFilesOptions, filesResponse.status, selectedFileOption]);
-
-  if (!appConfig) {
-    return 'Loading app config...';
-  }
-
-  if (appConfig.repositories.length === 0) {
-    return <Navigate to='/settings' />;
-  }
+  }, [branchFilesOptions, filesResponse.status, selectedFileOption, setSelectedFileOption]);
 
   return (
     <div className='flex flex-col mx-6 mb-6 max-h-full'>

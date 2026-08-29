@@ -1,6 +1,5 @@
 import { Repositories } from '../app-config/app-config';
 import { invoke } from '@tauri-apps/api';
-import { useAppConfig } from '@/app-config/useAppConfig';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
@@ -37,31 +36,29 @@ async function getAllOwners(
   return JSON.parse(owners) as DirectoryOwners;
 }
 
-function getAllCodeownersQueryKey(branch: string | null) {
-  return ['branch', branch ?? '', 'all-codeowners'];
+function getAllCodeownersQueryKey(repositoryId: string | null, branch: string | null) {
+  return ['repo', repositoryId ?? '', 'branch', branch ?? '', 'all-codeowners'];
 }
 
-function getAllCodeownersProgressQueryKey(branch: string | null) {
-  return ['branch', branch ?? '', 'all-codeowners-progress'];
+function getAllCodeownersProgressQueryKey(repositoryId: string | null, branch: string | null) {
+  return ['repo', repositoryId ?? '', 'branch', branch ?? '', 'all-codeowners-progress'];
 }
 
 type AllCodeownersProgressPayload = {
   session_id: string;
+  abs_repo_path: string;
+  branch: string;
   files_handled: number;
   files_total: number;
 };
 
-export function useAllCodeowners(branch: string | null) {
-  const appConfigResponse = useAppConfig();
+export function useAllCodeowners(repository: Repositories | null, branch: string | null) {
   const sessionId = useWebViewSessionId();
 
   const result = useQuery({
-    queryKey: getAllCodeownersQueryKey(branch),
-    queryFn: () =>
-      appConfigResponse.status === 'success'
-        ? getAllOwners(appConfigResponse.data.repositories[0], branch!, sessionId)
-        : null,
-    enabled: !!branch && appConfigResponse.status === 'success',
+    queryKey: getAllCodeownersQueryKey(repository?.id ?? null, branch),
+    queryFn: () => (repository ? getAllOwners(repository, branch!, sessionId) : null),
+    enabled: !!branch && !!repository,
     staleTime: 1_000 * 60 * 60, // every 60 min. Reloads request when you switch tabs, for example
     refetchInterval: 1_000 * 60 * 30, // every 30 min
     refetchOnWindowFocus: false, // for now request is too heavy
@@ -69,25 +66,32 @@ export function useAllCodeowners(branch: string | null) {
   return result;
 }
 
-export function useUpdateAllCodeowners(branch: string | null) {
+export function useUpdateAllCodeowners(repository: Repositories | null, branch: string | null) {
   const queryClient = useQueryClient();
   return useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: getAllCodeownersQueryKey(branch) });
-  }, [branch, queryClient]);
+    queryClient.invalidateQueries({
+      queryKey: getAllCodeownersQueryKey(repository?.id ?? null, branch),
+    });
+  }, [branch, queryClient, repository?.id]);
 }
 
-export function useAllCodeownersProgress(branch: string | null) {
-  const appConfigResponse = useAppConfig();
+export function useAllCodeownersProgress(repository: Repositories | null, branch: string | null) {
   const queryClient = useQueryClient();
   const sessionId = useWebViewSessionId();
+  const repositoryId = repository?.id ?? null;
+  const absRepoPath = repository?.repoPath ?? null;
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     const setupListener = async () => {
       unlisten = await listen<AllCodeownersProgressPayload>('all-codeowners-progress', event => {
-        if (event.payload.session_id === sessionId) {
+        if (
+          event.payload.session_id === sessionId &&
+          event.payload.abs_repo_path === absRepoPath &&
+          event.payload.branch === branch
+        ) {
           queryClient.setQueryData<AllCodeownersProgressPayload>(
-            getAllCodeownersProgressQueryKey(branch),
+            getAllCodeownersProgressQueryKey(repositoryId, branch),
             event.payload,
           );
         }
@@ -97,16 +101,18 @@ export function useAllCodeownersProgress(branch: string | null) {
     return () => {
       unlisten?.();
     };
-  }, [branch, queryClient, sessionId]);
+  }, [absRepoPath, branch, queryClient, repositoryId, sessionId]);
 
   return useQuery<AllCodeownersProgressPayload>({
-    queryKey: getAllCodeownersProgressQueryKey(branch),
-    enabled: !!branch && appConfigResponse.status === 'success',
+    queryKey: getAllCodeownersProgressQueryKey(repositoryId, branch),
+    enabled: !!branch && !!repository,
     staleTime: Infinity,
     refetchInterval: Infinity,
     refetchOnWindowFocus: false,
     initialData: {
       session_id: sessionId,
+      abs_repo_path: absRepoPath ?? '',
+      branch: branch ?? '',
       files_handled: 0,
       files_total: 0,
     },

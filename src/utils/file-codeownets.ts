@@ -1,36 +1,48 @@
-import { useAppConfig } from '@/app-config/useAppConfig';
+import { Repositories } from '@/app-config/app-config';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '@tauri-apps/api';
 import { useCallback } from 'react';
 
-function getBranchFileCodeownersQueryKey(branch: string | null, file: string | null) {
-  return ['branch', branch ?? '', file, 'codeowners'];
+function getBranchFileCodeownersQueryKey(
+  repositoryId: string | null,
+  branch: string | null,
+  file: string | null,
+) {
+  return ['repo', repositoryId ?? '', 'branch', branch ?? '', file, 'codeowners'];
 }
 
-export function useFileCodeowners(branch: string | null, file: string | null) {
-  const appConfigResponse = useAppConfig();
-
+export function useFileCodeowners(
+  repository: Repositories | null,
+  branch: string | null,
+  file: string | null,
+) {
   const result = useQuery({
-    queryKey: getBranchFileCodeownersQueryKey(branch, file),
+    queryKey: getBranchFileCodeownersQueryKey(repository?.id ?? null, branch, file),
     queryFn: async () => {
-      if (appConfigResponse.status !== 'success') {
+      if (!repository) {
         return null;
       }
       return (await invoke('get_codeowners_for_branch_file', {
         branch,
-        absRepoPath: appConfigResponse.data.repositories[0].repoPath,
+        absRepoPath: repository.repoPath,
         file,
       })) as string;
     },
-    enabled: !!branch && !!file && appConfigResponse.status === 'success',
+    enabled: !!branch && !!file && !!repository,
     refetchInterval: 1_000 * 60 * 5, // every 5 min
   });
   return result;
 }
 
-export function useUpdateFileCodeowners(branch: string | null, file: string | null) {
+export function useUpdateFileCodeowners(
+  repository: Repositories | null,
+  branch: string | null,
+  file: string | null,
+) {
   const queryClient = useQueryClient();
   return useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: getBranchFileCodeownersQueryKey(branch, file) });
-  }, [branch, file, queryClient]);
+    queryClient.invalidateQueries({
+      queryKey: getBranchFileCodeownersQueryKey(repository?.id ?? null, branch, file),
+    });
+  }, [branch, file, queryClient, repository?.id]);
 }

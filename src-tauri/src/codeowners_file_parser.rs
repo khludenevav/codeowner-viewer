@@ -96,9 +96,30 @@ impl FromStr for Owner {
 }
 
 /// Mappings of owners to path patterns
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Owners {
     paths: Vec<(Pattern, Vec<Owner>, Option<String>)>,
+    /// Precomputed per-rule metadata that never changes for the lifetime of
+    /// `Owners`. Stored in a parallel Vec (same length + same order as
+    /// `paths`) to keep the on-disk / test-visible shape of `paths` stable.
+    meta: Vec<RuleMeta>,
+}
+
+/// Per-rule precomputed data. `glob::MatchOptions` is `Copy` (three bools) so
+/// this whole struct is trivially `Copy` too.
+#[derive(Debug, Clone, Copy)]
+struct RuleMeta {
+    options: glob::MatchOptions,
+    ends_with_slash_star: bool,
+}
+
+impl PartialEq for Owners {
+    /// Only compares `paths`. `meta` is fully derived from `paths`, so
+    /// comparing it would be redundant, and skipping it lets tests
+    /// construct `Owners` without recomputing the metadata.
+    fn eq(&self, other: &Self) -> bool {
+        self.paths == other.paths
+    }
 }
 
 impl Owners {
@@ -107,38 +128,28 @@ impl Owners {
     where
         P: AsRef<Path>,
     {
-        self.paths
-            .iter()
-            .filter_map(|mapping| {
-                let (pattern, owners, _) = mapping;
-                let opts = glob::MatchOptions {
-                    case_sensitive: false,
-                    require_literal_separator: pattern.as_str().contains('/'),
-                    require_literal_leading_dot: false,
-                };
-                if pattern.matches_path_with(path.as_ref(), opts) {
-                    Some(owners)
-                } else {
-                    // this pattern is only meant to match
-                    // direct children
-                    if pattern.as_str().ends_with("/*") {
-                        return None;
-                    }
-                    // case of implied owned children
-                    // foo/bar @owner should indicate that foo/bar/baz.rs is
-                    // owned by @owner
-                    let mut p = path.as_ref();
-                    while let Some(parent) = p.parent() {
-                        if pattern.matches_path_with(parent, opts) {
-                            return Some(owners);
-                        } else {
-                            p = parent;
-                        }
-                    }
-                    None
+        let path_ref = path.as_ref();
+        for (i, (pattern, owners, _)) in self.paths.iter().enumerate() {
+            let meta = self.meta[i];
+            if pattern.matches_path_with(path_ref, meta.options) {
+                return Some(owners);
+            }
+            // this pattern is only meant to match direct children
+            if meta.ends_with_slash_star {
+                continue;
+            }
+            // case of implied owned children:
+            // `foo/bar @owner` should indicate that `foo/bar/baz.rs` is
+            // owned by `@owner`
+            let mut p = path_ref;
+            while let Some(parent) = p.parent() {
+                if pattern.matches_path_with(parent, meta.options) {
+                    return Some(owners);
                 }
-            })
-            .next()
+                p = parent;
+            }
+        }
+        None
     }
 
     /// Resolve the inline comment (e.g. `#!required`) for the CODEOWNERS rule matching a given path.
@@ -147,21 +158,18 @@ impl Owners {
     where
         P: AsRef<Path>,
     {
-        for (pattern, _, comment) in &self.paths {
-            let opts = glob::MatchOptions {
-                case_sensitive: false,
-                require_literal_separator: pattern.as_str().contains('/'),
-                require_literal_leading_dot: false,
-            };
-            let matches = if pattern.matches_path_with(path.as_ref(), opts) {
+        let path_ref = path.as_ref();
+        for (i, (pattern, _, comment)) in self.paths.iter().enumerate() {
+            let meta = self.meta[i];
+            let matches = if pattern.matches_path_with(path_ref, meta.options) {
                 true
-            } else if pattern.as_str().ends_with("/*") {
+            } else if meta.ends_with_slash_star {
                 false
             } else {
-                let mut p = path.as_ref();
+                let mut p = path_ref;
                 let mut found = false;
                 while let Some(parent) = p.parent() {
-                    if pattern.matches_path_with(parent, opts) {
+                    if pattern.matches_path_with(parent, meta.options) {
                         found = true;
                         break;
                     }
@@ -174,6 +182,112 @@ impl Owners {
             }
         }
         None
+    }
+
+    /// Resolve owners **and** the inline `#!` comment in a single pattern
+    /// scan. Returns `(owners, comment)` for the first rule that matches
+    /// `path`, or `(None, None)` if no rule matches.
+    ///
+    /// Semantically equivalent to calling `of(path)` and `comment_of(path)`
+    /// back-to-back, but only walks the pattern list (and parent chain)
+    /// once — matters for the "changed files in a branch" code path in
+    /// [`crate::get_changed_codeowners_for_branch`] which asks for both
+    /// pieces of every file.
+    pub fn of_with_comment<P>(&self, path: P) -> (Option<&Vec<Owner>>, Option<&str>)
+    where
+        P: AsRef<Path>,
+    {
+        let path_ref = path.as_ref();
+        for (i, (pattern, owners, comment)) in self.paths.iter().enumerate() {
+            let meta = self.meta[i];
+            let matches = if pattern.matches_path_with(path_ref, meta.options) {
+                true
+            } else if meta.ends_with_slash_star {
+                false
+            } else {
+                let mut p = path_ref;
+                let mut found = false;
+                while let Some(parent) = p.parent() {
+                    if pattern.matches_path_with(parent, meta.options) {
+                        found = true;
+                        break;
+                    }
+                    p = parent;
+                }
+                found
+            };
+            if matches {
+                return (Some(owners), comment.as_deref());
+            }
+        }
+        (None, None)
+    }
+
+    /// Return each rule's owners rendered as a single comma-separated string.
+    /// The returned vector is indexed by rule index (as returned by
+    /// [`Self::of_index_with_ancestor`] / [`Self::direct_match_index_at`]).
+    pub fn owner_strings(&self) -> Vec<String> {
+        self.paths
+            .iter()
+            .map(|(_, owners, _)| {
+                owners
+                    .iter()
+                    .map(|owner| format!("{owner}"))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            })
+            .collect()
+    }
+
+    /// Bulk / fast-path helper: index of the first rule that matches `dir`
+    /// directly, considering only rules that do NOT end with `/*` (those are
+    /// direct-child-only rules and are excluded from the ancestor walk in
+    /// [`Self::of`]).
+    ///
+    /// This is the per-directory piece used to build the ancestor-index
+    /// memoization cache when resolving owners for many files at once.
+    pub fn direct_match_index_at(&self, dir: &Path) -> Option<usize> {
+        for (i, (pattern, _, _)) in self.paths.iter().enumerate() {
+            let meta = self.meta[i];
+            if meta.ends_with_slash_star {
+                continue;
+            }
+            if pattern.matches_path_with(dir, meta.options) {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    /// Bulk / fast-path helper: index of the first rule that matches file
+    /// `path`, given `ancestor_index` — the precomputed "first rule index
+    /// that ancestor-matches `path.parent()`", produced by combining
+    /// [`Self::direct_match_index_at`] over the parent chain.
+    ///
+    /// Semantically equivalent to [`Self::of`], but avoids re-walking the
+    /// parent chain per file: the caller already computed the ancestor
+    /// result once per unique parent directory.
+    pub fn of_index_with_ancestor(
+        &self,
+        path: &Path,
+        ancestor_index: Option<usize>,
+    ) -> Option<usize> {
+        // We only need to check direct matches for rule indices strictly
+        // smaller than the ancestor result, because any hit at or past
+        // `ancestor_index` is already dominated by (or equal to) the
+        // ancestor match, which we return unchanged.
+        let upper = ancestor_index.unwrap_or(self.paths.len());
+        for i in 0..upper {
+            let (pattern, _, _) = &self.paths[i];
+            if pattern.matches_path_with(path, self.meta[i].options) {
+                return Some(i);
+            }
+        }
+        // Fall back to the ancestor result. If it's `None`, we also need to
+        // check the tail of the pattern list for a direct match (upper was
+        // set to `self.paths.len()` above, so the loop already did that and
+        // did not find one).
+        ancestor_index
     }
 }
 
@@ -216,7 +330,27 @@ where
         });
     // last match takes precedence
     paths.reverse();
-    Owners { paths }
+    let meta = build_meta(&paths);
+    Owners { paths, meta }
+}
+
+/// Compute the per-rule `RuleMeta` derived from `paths`. Kept as a free
+/// function so both `from_reader` and the tests-only constructor can share it.
+fn build_meta(paths: &[(Pattern, Vec<Owner>, Option<String>)]) -> Vec<RuleMeta> {
+    paths
+        .iter()
+        .map(|(pattern, _, _)| {
+            let s = pattern.as_str();
+            RuleMeta {
+                options: glob::MatchOptions {
+                    case_sensitive: false,
+                    require_literal_separator: s.contains('/'),
+                    require_literal_leading_dot: false,
+                },
+                ends_with_slash_star: s.ends_with("/*"),
+            }
+        })
+        .collect()
 }
 
 fn make_pattern(raw_path: &str) -> Pattern {
@@ -302,25 +436,28 @@ apps/ @octocat
     #[test]
     fn from_reader_parses() {
         let owners = from_reader(EXAMPLE.as_bytes());
+        let expected_paths = vec![
+            (Pattern::new("docs/**").unwrap(), vec![Owner::Username("@doctocat".into())], None),
+            (Pattern::new("**/apps/**").unwrap(), vec![Owner::Username("@octocat".into())], None),
+            (Pattern::new("**/docs/*").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
+            (Pattern::new("build/logs/**").unwrap(), vec![Owner::Username("@doctocat".into())], None),
+            (Pattern::new("*.go").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
+            (Pattern::new("*.js").unwrap(), vec![Owner::Username("@js-owner".into())], None),
+            (
+                Pattern::new("*").unwrap(),
+                vec![
+                    Owner::Username("@global-owner1".into()),
+                    Owner::Username("@global-owner2".into()),
+                ],
+                None,
+            ),
+        ];
+        let expected_meta = build_meta(&expected_paths);
         assert_eq!(
             owners,
             Owners {
-                paths: vec![
-                    (Pattern::new("docs/**").unwrap(), vec![Owner::Username("@doctocat".into())], None),
-                    (Pattern::new("**/apps/**").unwrap(), vec![Owner::Username("@octocat".into())], None),
-                    (Pattern::new("**/docs/*").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
-                    (Pattern::new("build/logs/**").unwrap(), vec![Owner::Username("@doctocat".into())], None),
-                    (Pattern::new("*.go").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
-                    (Pattern::new("*.js").unwrap(), vec![Owner::Username("@js-owner".into())], None),
-                    (
-                        Pattern::new("*").unwrap(),
-                        vec![
-                            Owner::Username("@global-owner1".into()),
-                            Owner::Username("@global-owner2".into()),
-                        ],
-                        None,
-                    ),
-                ],
+                paths: expected_paths,
+                meta: expected_meta,
             }
         )
     }
@@ -436,6 +573,83 @@ apps/ @octocat
         )
     }
 
+    /// Regression coverage for CODEOWNERS rules whose *paths* contain
+    /// bracket characters (e.g. Next.js dynamic route segments like
+    /// `[groupId]`). `make_pattern` escapes `\[` → `[[]` and `\]` → `[]]`
+    /// so the resulting glob character-classes match a literal `[`/`]`.
+    /// This test locks in both the pattern rewrite and the ownership
+    /// resolution — both through the canonical `Owners::of` slow path
+    /// and the batch fast path used for whole-repo resolution.
+    #[test]
+    fn owners_owns_paths_with_brackets() {
+        let raw = "/client/apps/dashboard/pages/destinations/\\[groupId\\]/*.tsx @dash-owners\n";
+        let owners = from_reader(raw.as_bytes());
+
+        // Slow path: literal match on a file inside `[groupId]`.
+        let file = "client/apps/dashboard/pages/destinations/[groupId]/data-security.page.tsx";
+        assert_eq!(
+            owners.of(file),
+            Some(&vec![Owner::Username("@dash-owners".into())]),
+            "Owners::of should match a file under a bracketed dynamic route segment",
+        );
+
+        // Slow path: a non-matching path with different bracket contents
+        // should NOT be owned by the bracketed rule — that would mean our
+        // character class silently swallowed the inner text.
+        let miss = "client/apps/dashboard/pages/destinations/regular/data-security.page.tsx";
+        assert_eq!(
+            owners.of(miss),
+            None,
+            "the bracketed rule must only match literal `[groupId]`, not any segment",
+        );
+
+        // Fast path parity: the batch resolver used for the whole-repo
+        // sweep must produce the same owner index. We reconstruct the
+        // ancestor cache the same way `main.rs` does for a single file.
+        let owner_strings = owners.owner_strings();
+        let path = Path::new(file);
+        let ancestor_index = {
+            let mut acc: Option<usize> = None;
+            let mut p = path.parent();
+            while let Some(dir) = p {
+                if let Some(i) = owners.direct_match_index_at(dir) {
+                    acc = Some(match acc {
+                        Some(prev) => prev.min(i),
+                        None => i,
+                    });
+                }
+                p = dir.parent();
+            }
+            acc
+        };
+        let fast_string = owners
+            .of_index_with_ancestor(path, ancestor_index)
+            .map(|i| owner_strings[i].clone());
+        assert_eq!(fast_string.as_deref(), Some("@dash-owners"));
+    }
+
+    /// The `/*` rule form is documented as "direct children only" in
+    /// GitHub's CODEOWNERS spec, and the matcher preserves that. Verify
+    /// it still holds when the path segment contains bracket characters
+    /// (e.g. `[groupId]/child.tsx` should still match `[groupId]/*` but
+    /// `[groupId]/nested/child.tsx` should not).
+    #[test]
+    fn owners_owns_bracketed_direct_children_only() {
+        let raw = "/pages/\\[id\\]/* @dyn-owners\n";
+        let owners = from_reader(raw.as_bytes());
+
+        assert_eq!(
+            owners.of("pages/[id]/index.tsx"),
+            Some(&vec![Owner::Username("@dyn-owners".into())]),
+            "direct child of bracketed dir should match `/*` rule",
+        );
+        assert_eq!(
+            owners.of("pages/[id]/nested/deep.tsx"),
+            None,
+            "nested descendant should NOT match a `/*` rule",
+        );
+    }
+
     #[test]
     fn make_pattern_escapes() {
         let pattern = make_pattern(
@@ -446,5 +660,29 @@ apps/ @octocat
             pattern.to_string(),
             r"client/apps/dashboard/pages/dashboard/destinations/[[]groupId[]]/data-security.page.tsx"
         )
+    }
+
+    /// `of_with_comment` must be behaviorally identical to calling `of`
+    /// and `comment_of` separately. Guards the single-scan optimization
+    /// used by `get_changed_codeowners_for_branch`.
+    #[test]
+    fn of_with_comment_matches_separate_calls() {
+        let raw = r"* @global-owner
+docs/* @docs-team #!required
+*.js @js-owner
+";
+        let owners = from_reader(raw.as_bytes());
+        for case in &[
+            "foo.txt",
+            "foo.js",
+            "docs/getting-started.md",
+            "nope",
+        ] {
+            assert_eq!(
+                owners.of_with_comment(case),
+                (owners.of(case), owners.comment_of(case)),
+                "combined lookup diverged from separate lookups for `{case}`",
+            );
+        }
     }
 }

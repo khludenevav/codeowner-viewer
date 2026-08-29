@@ -1,11 +1,20 @@
 import { readTextFile, writeTextFile, exists, BaseDirectory, createDir } from '@tauri-apps/api/fs';
 
 export type Repositories = {
+  /** Stable auto-generated identifier used in URLs and query keys */
+  id: string;
   /** Absolute path to repository */
   repoPath: string;
   /** Relative path to codeowners from repoPath */
   codeowners: string;
 };
+
+export function generateRepositoryId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `repo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export type ColorTheme = 'dark' | 'light' | 'system';
 
@@ -31,6 +40,13 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
 function fillConfigForOlderVersions(appConfig: AppConfig) {
   if (!appConfig.theme) {
     appConfig.theme = DEFAULT_THEME;
+  }
+  if (Array.isArray(appConfig.repositories)) {
+    for (const repo of appConfig.repositories) {
+      if (!repo.id) {
+        repo.id = generateRepositoryId();
+      }
+    }
   }
 }
 
