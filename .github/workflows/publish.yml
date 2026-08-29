@@ -60,7 +60,7 @@ jobs:
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'App v__VERSION__'
-          releaseBody: 'Added support for comments.'
+          releaseBody: 'Added support for multiple repos. x95 times faster calculations for the whole repo.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
