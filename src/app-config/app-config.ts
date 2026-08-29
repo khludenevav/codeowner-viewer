@@ -37,17 +37,21 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   theme: DEFAULT_THEME,
 };
 
-function fillConfigForOlderVersions(appConfig: AppConfig) {
+function fillConfigForOlderVersions(appConfig: AppConfig): boolean {
+  let migrated = false;
   if (!appConfig.theme) {
     appConfig.theme = DEFAULT_THEME;
+    migrated = true;
   }
   if (Array.isArray(appConfig.repositories)) {
     for (const repo of appConfig.repositories) {
       if (!repo.id) {
         repo.id = generateRepositoryId();
+        migrated = true;
       }
     }
   }
+  return migrated;
 }
 
 export async function readAppConfig(): Promise<AppConfig> {
@@ -55,13 +59,14 @@ export async function readAppConfig(): Promise<AppConfig> {
   if (await exists(CONFIG_FILE_NAME, { dir: BaseDirectory.AppConfig })) {
     const configAsJson = await readTextFile(CONFIG_FILE_NAME, { dir: BaseDirectory.AppConfig });
     config = JSON.parse(configAsJson);
-    fillConfigForOlderVersions(config);
+    const migrated = fillConfigForOlderVersions(config);
+    if (migrated) {
+      await writeAppConfig(config);
+    }
   } else {
     config = DEFAULT_APP_CONFIG;
     await createDir('', { dir: BaseDirectory.AppConfig, recursive: true });
-    await writeTextFile(CONFIG_FILE_NAME, JSON.stringify(config, null, 2), {
-      dir: BaseDirectory.AppConfig,
-    });
+    await writeAppConfig(config);
   }
 
   return config;
