@@ -94,7 +94,9 @@ export const AppUpdater: React.FC = () => {
             {suggestUpdateDialogData?.releaseNotes && (
               <>
                 <div>Release notes:</div>
-                <div className='ml-2'>{suggestUpdateDialogData.releaseNotes}</div>
+                <div className='ml-2 whitespace-pre-line'>
+                  {suggestUpdateDialogData.releaseNotes}
+                </div>
               </>
             )}
             <div className='mt-4'>Would you like to install it now?</div>
