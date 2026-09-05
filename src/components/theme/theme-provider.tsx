@@ -32,17 +32,31 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       return;
     }
     const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
 
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
+    const applyTheme = (target: ColorTheme) => {
+      root.classList.remove('light', 'dark');
+      if (target === 'system') {
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+        root.classList.add(systemTheme);
+      } else {
+        root.classList.add(target);
+      }
+    };
 
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(theme);
+    applyTheme(theme);
+
+    if (theme !== 'system') {
+      return;
     }
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => applyTheme('system');
+    media.addEventListener('change', handleChange);
+    return () => {
+      media.removeEventListener('change', handleChange);
+    };
   }, [appConfigResponse.status, theme]);
 
   const value = useMemo(() => {
