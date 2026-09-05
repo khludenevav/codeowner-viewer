@@ -12,6 +12,7 @@
 
 import { Route as rootRoute } from './routes/~__root'
 import { Route as McpImport } from './routes/~mcp'
+import { Route as ChangelogImport } from './routes/~changelog'
 import { Route as IndexImport } from './routes/~index'
 import { Route as RepositoriesRepositoryIdFileOwnerImport } from './routes/~repositories/~$repositoryId/~file-owner'
 import { Route as RepositoriesRepositoryIdCodeownersImport } from './routes/~repositories/~$repositoryId/~codeowners'
@@ -21,6 +22,11 @@ import { Route as RepositoriesRepositoryIdAllOwnersImport } from './routes/~repo
 
 const McpRoute = McpImport.update({
   path: '/mcp',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ChangelogRoute = ChangelogImport.update({
+  path: '/changelog',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -58,6 +64,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
+    '/changelog': {
+      id: '/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof ChangelogImport
+      parentRoute: typeof rootRoute
+    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
@@ -93,6 +106,7 @@ declare module '@tanstack/react-router' {
 
 export const routeTree = rootRoute.addChildren({
   IndexRoute,
+  ChangelogRoute,
   McpRoute,
   RepositoriesRepositoryIdAllOwnersRoute,
   RepositoriesRepositoryIdCodeownersRoute,
@@ -108,6 +122,7 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "~__root.tsx",
       "children": [
         "/",
+        "/changelog",
         "/mcp",
         "/repositories/$repositoryId/all-owners",
         "/repositories/$repositoryId/codeowners",
@@ -116,6 +131,9 @@ export const routeTree = rootRoute.addChildren({
     },
     "/": {
       "filePath": "~index.tsx"
+    },
+    "/changelog": {
+      "filePath": "~changelog.tsx"
     },
     "/mcp": {
       "filePath": "~mcp.tsx"

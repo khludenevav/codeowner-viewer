@@ -18,7 +18,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { useMcpHeaderStatus } from '@/mcp/useMcp';
 import { cn } from '@/utils/components-utils';
 import { Link, useMatchRoute, useNavigate, useParams } from '@tanstack/react-router';
-import { Plug, Plus, SettingsIcon, X } from 'lucide-react';
+import { Plug, Plus, SettingsIcon, History, X } from 'lucide-react';
 
 type SectionKey = 'codeowners' | 'file-owner' | 'all-owners';
 
@@ -81,6 +81,7 @@ function RepoTabsRow({ repositories }: RepoTabsRowProps) {
 
         <div className='flex items-center gap-0.5 flex-shrink-0 pb-1'>
           <McpHeaderButton />
+          <ChangelogHeaderButton />
           <Tooltip content='Settings'>
             <Button
               type='button'
@@ -200,6 +201,30 @@ function McpHeaderButton() {
             )}
             aria-hidden='true'
           />
+        </Button>
+      </Link>
+    </Tooltip>
+  );
+}
+
+function ChangelogHeaderButton() {
+  const matchRoute = useMatchRoute();
+  const isActive = !!matchRoute({ to: '/changelog' });
+  return (
+    <Tooltip content='Changelog'>
+      <Link to='/changelog' className='block'>
+        <Button
+          type='button'
+          variant='ghost'
+          size='sm'
+          aria-label='Changelog'
+          className={cn(
+            'h-8 gap-1.5 px-2 text-foreground/70 hover:text-foreground',
+            isActive && 'bg-secondary text-foreground',
+          )}
+        >
+          <History className='h-4 w-4' />
+          <span className='text-xs font-medium'>Changelog</span>
         </Button>
       </Link>
     </Tooltip>
