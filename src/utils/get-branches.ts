@@ -1,5 +1,5 @@
 import { Repositories } from '@/app-config/app-config';
-import { Command } from '@tauri-apps/api/shell';
+import { Command } from '@tauri-apps/plugin-shell';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { ComboboxOption } from '@/components/ui/virtual-combobox';
@@ -20,7 +20,7 @@ const NO_BRANCHES: Branches = {
 };
 
 async function getBranches(repository: Repositories): Promise<Branches> {
-  const command = new Command('run-git-command', ['--no-pager', 'branch', '-a'], {
+  const command = Command.create('run-git-command', ['--no-pager', 'branch', '-a'], {
     cwd: repository.repoPath,
   });
   const output = await command.execute();

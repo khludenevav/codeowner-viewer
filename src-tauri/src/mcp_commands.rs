@@ -9,7 +9,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Listener, Manager, State};
 use tokio::runtime::Handle as TokioHandle;
 
 use crate::{
@@ -53,7 +53,7 @@ impl McpRuntime {
         if let Ok(mut s) = self.status.write() {
             *s = status.clone();
         }
-        let _ = app.emit_all("mcp-status-changed", status);
+        let _ = app.emit("mcp-status-changed", status);
     }
 }
 
@@ -76,9 +76,9 @@ pub fn on_startup(app: AppHandle) {
 
     // Resolve log store.
     let data_dir = app
-        .path_resolver()
+        .path()
         .app_data_dir()
-        .unwrap_or_else(|| PathBuf::from("."));
+        .unwrap_or_else(|_| PathBuf::from("."));
     let log = match McpLogStore::open(&data_dir) {
         Ok(s) => Arc::new(s),
         Err(err) => {
@@ -106,11 +106,11 @@ pub fn on_startup(app: AppHandle) {
     {
         let store_clone = store.clone();
         let app_clone = app.clone();
-        app.listen_global("app-config-updated", move |_event| {
+        app.listen_any("app-config-updated", move |_event| {
             if let Err(err) = store_clone.reload() {
                 tracing::warn!(?err, "failed to reload AppConfig after update event");
             }
-            let _ = app_clone.emit_all("mcp-config-reloaded", ());
+            let _ = app_clone.emit("mcp-config-reloaded", ());
         });
     }
 
@@ -125,12 +125,18 @@ pub fn on_startup(app: AppHandle) {
         );
     }
 
-    // Cleanup on window close.
-    let app_for_close = app.clone();
-    app.listen_global("tauri://close-requested", move |_| {
-        let runtime = app_for_close.state::<McpRuntime>();
-        stop_server(&runtime);
-    });
+    // Cleanup on window close. In v2 window events are delivered via
+    // `WebviewWindow::on_window_event` rather than the v1
+    // `tauri://close-requested` global event.
+    if let Some(window) = app.get_webview_window("main") {
+        let app_for_close = app.clone();
+        window.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                let runtime = app_for_close.state::<McpRuntime>();
+                stop_server(&runtime);
+            }
+        });
+    }
 }
 
 fn start_server(app: &AppHandle, port: u16) {
@@ -247,7 +253,7 @@ pub fn mcp_reload_config(app: AppHandle) {
     if let Some(store) = runtime.app_config.read().ok().and_then(|g| g.clone()) {
         let _ = store.reload();
     }
-    let _ = app.emit_all("mcp-config-reloaded", ());
+    let _ = app.emit("mcp-config-reloaded", ());
 }
 
 // ---- Tauri commands: log store ---------------------------------------

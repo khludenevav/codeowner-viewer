@@ -1,7 +1,7 @@
 import { Repositories } from '@/app-config/app-config';
 import { useQuery } from '@tanstack/react-query';
 import { ComboboxOption } from '@/components/ui/virtual-combobox';
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/core';
 
 /** @return list of files in repository for specified branch  */
 async function getBranchFiles(repository: Repositories, branch: string | null): Promise<string[]> {

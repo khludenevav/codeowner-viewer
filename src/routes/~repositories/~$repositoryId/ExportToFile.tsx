@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { DirectoryOwners, FileOwners } from '@/utils/all-owners';
-import { open } from '@tauri-apps/api/dialog';
-import { writeFile, exists } from '@tauri-apps/api/fs';
+import { open } from '@tauri-apps/plugin-dialog';
+import { writeTextFile, exists } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
 import { toast } from 'sonner';
 
@@ -63,7 +63,7 @@ async function createFileInSelectedDir(filteredRoot: DirectoryOwners) {
   } while (await exists(path));
   const contents = await getContent(filteredRoot);
   try {
-    await writeFile({ path, contents });
+    await writeTextFile(path, contents);
     toast.success(`File saved successfully to ${path}`);
   } catch (e) {
     toast.error(`Failed to save file: ${e}`);

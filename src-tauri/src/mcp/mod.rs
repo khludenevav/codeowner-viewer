@@ -8,6 +8,7 @@ pub mod compactor;
 pub mod error;
 pub mod log_store;
 pub mod path_expander;
+pub mod port_holder;
 pub mod repo_resolver;
 pub mod schema;
 pub mod tool_get_codeowners;
@@ -194,9 +195,15 @@ pub async fn start(
     log_store: Arc<McpLogStore>,
 ) -> Result<McpServerHandle, String> {
     let addr: SocketAddr = ([127, 0, 0, 1], port).into();
-    let listener = TcpListener::bind(addr)
-        .await
-        .map_err(|e| format!("could not bind {addr}: {e}"))?;
+    let listener = TcpListener::bind(addr).await.map_err(|e| {
+        let base = format!("could not bind {addr}: {e}");
+        if e.kind() == std::io::ErrorKind::AddrInUse {
+            if let Some(holder) = port_holder::describe_listener(port) {
+                return format!("{base}. Port is held by {holder}.");
+            }
+        }
+        base
+    })?;
 
     let handler_factory_app = app_config.clone();
     let handler_factory_log = log_store.clone();

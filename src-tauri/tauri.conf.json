@@ -1,112 +1,68 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Codeowners viewer",
+  "version": "0.16.0",
+  "identifier": "com.khludenev.codeowners-viewer",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
-    "devPath": "http://localhost:3000",
-    "distDir": "../dist"
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "Codeowners viewer",
-    "version": "0.15.2"
-  },
-  "tauri": {
-    "allowlist": {
-      "path": {
-        "all": true
-      },
-      "all": false,
-      "dialog": {
-        "all": false,
-        "ask": true,
-        "confirm": false,
-        "message": false,
-        "open": true,
-        "save": false
-      },
-      "shell": {
-        "all": false,
-        "execute": true,
-        "open": true,
-        "scope": [
-          {
-            "name": "run-git-command",
-            "cmd": "git",
-            "args": true
-          }
-        ],
-        "sidecar": false
-      },
-      "fs": {
-        "all": false,
-        "copyFile": false,
-        "createDir": true,
-        "exists": true,
-        "readDir": false,
-        "readFile": true,
-        "removeDir": false,
-        "removeFile": false,
-        "renameFile": false,
-        "scope": ["$DATA/*", "$APPCONFIG/*"],
-        "writeFile": true
-      },
-      "process": {
-        "all": false,
-        "exit": false,
-        "relaunch": true,
-        "relaunchDangerousAllowSymlinkMacos": false
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Codeowners viewer",
+        "maximized": true,
+        "resizable": true
       }
-    },
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "identifier": "com.khludenev.codeowners-viewer",
-      "longDescription": "Desktop application for viewing codeowners for changed files for particular git branch",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [],
-      "shortDescription": "View codeowners for changed files for git branch",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+    ],
     "security": {
       "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "DeveloperTool",
+    "copyright": "",
+    "shortDescription": "View codeowners for changed files for git branch",
+    "longDescription": "Desktop application for viewing codeowners for changed files for particular git branch",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "externalBin": [],
+    "createUpdaterArtifacts": "v1Compatible",
+    "linux": {
+      "deb": {
+        "depends": []
+      }
     },
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "plugins": {
     "updater": {
-      "active": true,
       "endpoints": [
         "https://github.com/khludenevav/codeowner-viewer/releases/latest/download/latest.json"
       ],
-      "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU4QkI5NkFFRUY5OTgxRjkKUldUNWdabnZycGE3NksvcWJrNGwvY3VDSHlaSVlYSzRhdUxOeTZYbU8vUVp4ZWhDTGpsUy9WRXMK"
-    },
-    "windows": [
-      {
-        "maximized": true,
-        "resizable": true,
-        "title": "Codeowners viewer"
-      }
-    ]
+    }
   }
 }

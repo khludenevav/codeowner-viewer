@@ -4,11 +4,15 @@ All notable changes to Codeowners viewer are documented in this file.
 
 <!--
 Release process:
-- The version at the top must match `package.version` in `src-tauri/tauri.conf.json`.
+- The version at the top must match the top-level `version` in `src-tauri/tauri.conf.json`.
 - When you push a `v*` tag, `.github/workflows/publish.yml` reads the section for
   that version and uses it as the GitHub release body.
 - Use `## <version>` to start a new entry and `-` bullets for the notes.
 -->
+
+## 0.16.0
+
+- Migrated to Tauri v2. No real user impact.
 
 ## 0.15.2
 

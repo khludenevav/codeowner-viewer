@@ -7,7 +7,7 @@ import { routeTree } from './routeTree.gen';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './components/theme/theme-provider';
 import { TooltipProvider } from './components/ui/tooltip';
-import { appWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TauriEvent } from '@tauri-apps/api/event';
 import { Toaster } from '@/components/ui/sonner';
 import { WebViewSessionIdProvider } from './utils/WebViewSessionIdProvider';
@@ -37,10 +37,11 @@ const QUERY_CLIENT = new QueryClient({
 });
 
 // React query focus event works incorrectly. So we manually managing focus state of app
-appWindow.listen(TauriEvent.WINDOW_FOCUS, () => {
+const currentWindow = getCurrentWindow();
+currentWindow.listen(TauriEvent.WINDOW_FOCUS, () => {
   focusManager.setFocused(true);
 });
-appWindow.listen(TauriEvent.WINDOW_BLUR, () => {
+currentWindow.listen(TauriEvent.WINDOW_BLUR, () => {
   focusManager.setFocused(false);
 });
 

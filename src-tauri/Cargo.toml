@@ -7,17 +7,26 @@ license = ""
 repository = ""
 default-run = "app"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.95.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
-tauri-build = { version = "1.5.3", features = [] }
+tauri-build = { version = "=2.6.3", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.7.0", features = [ "process-relaunch", "dialog-ask", "updater", "fs-write-file", "fs-read-file", "fs-exists", "fs-create-dir", "shell-execute", "dialog-open", "path-all", "shell-open"] }
+tauri = { version = "=2.11.5", features = [] }
+tauri-plugin-dialog = "=2.7.3"
+tauri-plugin-fs = "=2.5.2"
+tauri-plugin-process = "=2.3.1"
+tauri-plugin-shell = "=2.3.6"
+tauri-plugin-updater = "=2.11.0"
 pretty_assertions = "1.4.0"
 glob = "0.3.1"
 regex = "1.10.6"

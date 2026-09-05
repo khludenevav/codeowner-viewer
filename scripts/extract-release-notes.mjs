@@ -4,8 +4,10 @@
 // Usage:
 //   node scripts/extract-release-notes.mjs [version]
 //
-// If `version` is omitted, it is read from `package.version` in
-// src-tauri/tauri.conf.json — that's what the publish workflow does.
+// If `version` is omitted, it is read from the top-level `version` field
+// in src-tauri/tauri.conf.json — that's what the publish workflow does.
+// (In Tauri v1 this lived under `package.version`; v2 promoted it to the
+// root object.)
 //
 // The matching section is everything between a heading `## <version>` and the
 // next `## ` heading (or end of file). Leading/trailing blank lines are trimmed.
@@ -22,9 +24,9 @@ const tauriConfPath = resolve(repoRoot, 'src-tauri/tauri.conf.json');
 function readVersionFromTauriConf() {
   const raw = readFileSync(tauriConfPath, 'utf8');
   const parsed = JSON.parse(raw);
-  const version = parsed?.package?.version;
+  const version = parsed?.version;
   if (typeof version !== 'string' || version.length === 0) {
-    throw new Error(`Could not read package.version from ${tauriConfPath}`);
+    throw new Error(`Could not read version from ${tauriConfPath}`);
   }
   return version;
 }

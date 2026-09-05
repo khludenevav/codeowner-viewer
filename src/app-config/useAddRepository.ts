@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { path } from '@tauri-apps/api';
-import { open } from '@tauri-apps/api/dialog';
+import { homeDir } from '@tauri-apps/api/path';
+import { open } from '@tauri-apps/plugin-dialog';
 import { useNavigate } from '@tanstack/react-router';
 
 import { generateRepositoryId, Repositories } from './app-config';
@@ -22,9 +22,8 @@ export function useAddRepository() {
     }
     const selectedDirectory = await open({
       title: 'Select repository directory',
-      defaultPath: await path.homeDir(),
+      defaultPath: await homeDir(),
       directory: true,
-      recursive: true,
     });
     if (!selectedDirectory || Array.isArray(selectedDirectory)) {
       return;

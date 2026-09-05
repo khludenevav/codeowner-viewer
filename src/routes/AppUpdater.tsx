@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { installUpdate, onUpdaterEvent, UpdateStatus } from '@tauri-apps/api/updater';
-import { relaunch } from '@tauri-apps/api/process';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { relaunch } from '@tauri-apps/plugin-process';
+import type { DownloadEvent, Update } from '@tauri-apps/plugin-updater';
 import { useAppCheckUpdate } from '@/utils/useCheckUpdates';
 import {
   Dialog,
@@ -12,62 +12,86 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
+type ProgressEvent = { kind: 'progress'; downloaded: number; total?: number };
+type ErrorEvent = { kind: 'error'; message: string };
+type FinishedEvent = { kind: 'finished' };
+type UpdateEvent = ProgressEvent | ErrorEvent | FinishedEvent;
+
 export const AppUpdater: React.FC = () => {
-  const [events, setEvents] = useState<{ error: string | undefined; status: UpdateStatus }[]>([]);
+  const [events, setEvents] = useState<UpdateEvent[]>([]);
   const [suggestUpdateDialogData, setSuggestUpdateDialogData] = useState<{
     newVersion: string | undefined;
     releaseNotes: string | undefined;
   } | null>(null);
   const [openUpdatingDialog, setOpenUpdatingDialog] = useState(false);
   const appUpdateResponse = useAppCheckUpdate();
+  const availableUpdate: Update | null = appUpdateResponse.data ?? null;
+
   const onInstallConfirm = useCallback(async () => {
-    setEvents([]);
-    // Install the update. This will also restart the app on Windows.
-    await installUpdate();
-    setEvents(prev => [
-      ...prev,
-      { error: 'Error in restarting app automatically. Restart manually.', status: 'DONE' },
-    ]);
-    // On macOS and Linux we need to restart the app manually.
-    await relaunch();
-  }, []);
-
-  useEffect(() => {
-    let unlisten: (() => void) | undefined = undefined;
-    const attachUpdater = async () => {
-      unlisten = await onUpdaterEvent(({ error, status }) => {
-        setEvents(prev => [...prev, { error, status }]);
-      });
-    };
-    attachUpdater();
-    // you need to call unlisten if your handler goes out of scope, for example if the component is unmounted.
-    return unlisten;
-  }, []);
-
-  useEffect(() => {
-    if (appUpdateResponse.status === 'success') {
-      if (appUpdateResponse.data.shouldUpdate) {
-        const tryUpdate = async () => {
-          /**
-           * How manifest data looks like:
-           * version: 0.7.0
-           * date: 2024-09-08 10:20:01.515 +00:00:00
-           * body: Added the Repo owners tab to explore all repository owners.
-           */
-          const manifest = appUpdateResponse.data.manifest;
-          setSuggestUpdateDialogData({
-            newVersion: manifest?.version,
-            releaseNotes: manifest?.body,
-          });
-        };
-        tryUpdate();
-      }
+    if (!availableUpdate) {
+      return;
     }
-  }, [
-    appUpdateResponse.data?.manifest,
-    appUpdateResponse.data?.shouldUpdate,
-    appUpdateResponse.status,
-  ]);
+    setEvents([]);
+    let contentLength: number | undefined;
+    let downloaded = 0;
+    try {
+      await availableUpdate.downloadAndInstall((event: DownloadEvent) => {
+        if (event.event === 'Started') {
+          contentLength = event.data.contentLength;
+          downloaded = 0;
+          setEvents(prev => [
+            ...prev,
+            { kind: 'progress', downloaded, total: contentLength },
+          ]);
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          setEvents(prev => [
+            ...prev,
+            { kind: 'progress', downloaded, total: contentLength },
+          ]);
+        } else if (event.event === 'Finished') {
+          setEvents(prev => [...prev, { kind: 'finished' }]);
+        }
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setEvents(prev => [...prev, { kind: 'error', message }]);
+      return;
+    }
+    // On macOS and Linux we need to restart the app manually. `relaunch`
+    // is a no-op on Windows when the updater has already replaced the
+    // running executable.
+    try {
+      await relaunch();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setEvents(prev => [
+        ...prev,
+        {
+          kind: 'error',
+          message: `Error restarting the app automatically (${message}). Restart manually.`,
+        },
+      ]);
+    }
+  }, [availableUpdate]);
+
+  useEffect(() => {
+    if (appUpdateResponse.status !== 'success') {
+      return;
+    }
+    if (!availableUpdate) {
+      return;
+    }
+    setSuggestUpdateDialogData({
+      newVersion: availableUpdate.version,
+      releaseNotes: availableUpdate.body,
+    });
+  }, [appUpdateResponse.status, availableUpdate]);
+
+  const errorEvents = useMemo(
+    () => events.filter((e): e is ErrorEvent => e.kind === 'error'),
+    [events],
+  );
 
   return (
     <>
@@ -132,11 +156,9 @@ export const AppUpdater: React.FC = () => {
           </DialogHeader>
           <div className='max-h-96 overflow-y-auto'>
             <p>Downloading and installing...</p>
-            {events.some(evt => !!evt.error) &&
-              events.map((eventInfo, i) => (
-                <div key={i}>
-                  Status: {eventInfo.status}. {eventInfo.error && `Error: ${eventInfo.error}`}
-                </div>
+            {errorEvents.length > 0 &&
+              errorEvents.map((eventInfo, i) => (
+                <div key={i}>Error: {eventInfo.message}</div>
               ))}
           </div>
         </DialogContent>

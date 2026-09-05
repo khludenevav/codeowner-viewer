@@ -11,6 +11,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use tauri::Manager;
 
 pub const DEFAULT_MCP_PORT: u16 = 47821;
 
@@ -68,9 +69,9 @@ impl AppConfigStore {
     /// same way the frontend does (`BaseDirectory.AppConfig`).
     pub fn from_tauri(app_handle: &tauri::AppHandle) -> anyhow::Result<Self> {
         let dir = app_handle
-            .path_resolver()
+            .path()
             .app_config_dir()
-            .ok_or_else(|| anyhow::anyhow!("could not resolve app config dir"))?;
+            .map_err(|e| anyhow::anyhow!("could not resolve app config dir: {e}"))?;
         Self::from_dir(&dir)
     }
 

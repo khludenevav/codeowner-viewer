@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Circle, Copy, Plug, RefreshCw, Trash2 } from 'lucide-react';

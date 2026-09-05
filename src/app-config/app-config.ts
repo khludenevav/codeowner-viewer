@@ -1,4 +1,4 @@
-import { readTextFile, writeTextFile, exists, BaseDirectory, createDir } from '@tauri-apps/api/fs';
+import { readTextFile, writeTextFile, exists, BaseDirectory, mkdir } from '@tauri-apps/plugin-fs';
 import { emit } from '@tauri-apps/api/event';
 
 export type Repositories = {
@@ -84,8 +84,8 @@ function fillConfigForOlderVersions(appConfig: AppConfig): boolean {
 
 export async function readAppConfig(): Promise<AppConfig> {
   let config: AppConfig;
-  if (await exists(CONFIG_FILE_NAME, { dir: BaseDirectory.AppConfig })) {
-    const configAsJson = await readTextFile(CONFIG_FILE_NAME, { dir: BaseDirectory.AppConfig });
+  if (await exists(CONFIG_FILE_NAME, { baseDir: BaseDirectory.AppConfig })) {
+    const configAsJson = await readTextFile(CONFIG_FILE_NAME, { baseDir: BaseDirectory.AppConfig });
     config = JSON.parse(configAsJson);
     const migrated = fillConfigForOlderVersions(config);
     if (migrated) {
@@ -93,7 +93,7 @@ export async function readAppConfig(): Promise<AppConfig> {
     }
   } else {
     config = DEFAULT_APP_CONFIG;
-    await createDir('', { dir: BaseDirectory.AppConfig, recursive: true });
+    await mkdir('', { baseDir: BaseDirectory.AppConfig, recursive: true });
     await writeAppConfig(config);
   }
 
@@ -102,7 +102,7 @@ export async function readAppConfig(): Promise<AppConfig> {
 
 export async function writeAppConfig(config: AppConfig) {
   await writeTextFile(CONFIG_FILE_NAME, JSON.stringify(config, null, 2), {
-    dir: BaseDirectory.AppConfig,
+    baseDir: BaseDirectory.AppConfig,
   });
   // Rust side reloads AppConfig (repos + MCP settings) on this event so it
   // doesn't have to poll config.json.
