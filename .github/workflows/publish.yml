@@ -52,6 +52,17 @@ jobs:
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
         run: pnpm install # change this to npm or pnpm depending on which one you use.
 
+      - name: extract release notes from CHANGELOG.md
+        id: release_notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo 'notes<<CHANGELOG_EOF'
+            node scripts/extract-release-notes.mjs
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -60,7 +71,7 @@ jobs:
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'App v__VERSION__'
-          releaseBody: 'Added support for multiple repos. x95 times faster calculations for the whole repo.'
+          releaseBody: ${{ steps.release_notes.outputs.notes }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
