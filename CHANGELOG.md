@@ -10,9 +10,9 @@ Release process:
 - Use `## <version>` to start a new entry and `-` bullets for the notes.
 -->
 
-## 0.16.0
+## 0.16.1
 
-- Migrated to Tauri v2. No real user impact.
+- Migrated to Tauri v2. Impact: security. You have to update before November 1st 2026, or auto next auto update will not work.
 
 ## 0.15.2
 
