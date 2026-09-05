@@ -15,9 +15,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tooltip } from '@/components/ui/tooltip';
+import { useMcpHeaderStatus } from '@/mcp/useMcp';
 import { cn } from '@/utils/components-utils';
 import { Link, useMatchRoute, useNavigate, useParams } from '@tanstack/react-router';
-import { Plus, SettingsIcon, X } from 'lucide-react';
+import { Plug, Plus, SettingsIcon, X } from 'lucide-react';
 
 type SectionKey = 'codeowners' | 'file-owner' | 'all-owners';
 
@@ -79,6 +80,7 @@ function RepoTabsRow({ repositories }: RepoTabsRowProps) {
         </div>
 
         <div className='flex items-center gap-0.5 flex-shrink-0 pb-1'>
+          <McpHeaderButton />
           <Tooltip content='Settings'>
             <Button
               type='button'
@@ -156,6 +158,51 @@ function RepoTab({ repository, isActive, sectionKey }: RepoTabProps) {
         repository={repository}
       />
     </>
+  );
+}
+
+function McpHeaderButton() {
+  const matchRoute = useMatchRoute();
+  const state = useMcpHeaderStatus();
+  const isActive = !!matchRoute({ to: '/mcp' });
+  const [dotColor, tooltip] = (() => {
+    switch (state) {
+      case 'running':
+        return ['bg-green-500', 'MCP running — click to open'];
+      case 'error':
+        return ['bg-destructive', 'MCP error — click to open'];
+      case 'disabled':
+        return ['bg-muted-foreground', 'MCP disabled — click to open'];
+      case 'stopped':
+      default:
+        return ['bg-muted-foreground', 'MCP stopped — click to open'];
+    }
+  })();
+  return (
+    <Tooltip content={tooltip}>
+      <Link to='/mcp' className='block'>
+        <Button
+          type='button'
+          variant='ghost'
+          size='sm'
+          aria-label='MCP server'
+          className={cn(
+            'relative h-8 gap-1.5 px-2 text-foreground/70 hover:text-foreground',
+            isActive && 'bg-secondary text-foreground',
+          )}
+        >
+          <Plug className='h-4 w-4' />
+          <span className='text-xs font-medium'>MCP</span>
+          <span
+            className={cn(
+              'ml-0.5 h-1.5 w-1.5 rounded-full',
+              dotColor,
+            )}
+            aria-hidden='true'
+          />
+        </Button>
+      </Link>
+    </Tooltip>
   );
 }
 

@@ -111,6 +111,10 @@ pub struct Owners {
 struct RuleMeta {
     options: glob::MatchOptions,
     ends_with_slash_star: bool,
+    /// 1-based line number in the source CODEOWNERS file. Used by MCP full
+    /// response mode. Populated by `from_reader`; the tests-only constructor
+    /// leaves this at 0.
+    line_number: u32,
 }
 
 impl PartialEq for Owners {
@@ -289,6 +293,27 @@ impl Owners {
         // did not find one).
         ancestor_index
     }
+
+    /// Total number of rules parsed from the CODEOWNERS file.
+    pub fn rule_count(&self) -> usize {
+        self.paths.len()
+    }
+
+    /// Raw inline comment (including the leading `#`) recorded for rule
+    /// index `i`, or `None` if the rule had no inline comment. `None` is
+    /// returned for out-of-range indices too.
+    pub fn comment_at(&self, i: usize) -> Option<&str> {
+        self.paths
+            .get(i)
+            .and_then(|(_, _, c)| c.as_deref())
+    }
+
+    /// 1-based line number in the source CODEOWNERS file that produced rule
+    /// index `i`. Returns 0 for out-of-range indices or rules constructed
+    /// without line-number tracking (tests-only path).
+    pub fn line_number_at(&self, i: usize) -> u32 {
+        self.meta.get(i).map(|m| m.line_number).unwrap_or(0)
+    }
 }
 
 /// Parse a CODEOWNERS file from some readable source
@@ -302,44 +327,61 @@ pub fn from_reader<R>(read: R) -> Owners
 where
     R: Read,
 {
-    let mut paths = BufReader::new(read)
+    let (mut paths, mut line_numbers): (
+        Vec<(Pattern, Vec<Owner>, Option<String>)>,
+        Vec<u32>,
+    ) = BufReader::new(read)
         .lines()
         .filter_map(Result::ok)
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .fold(Vec::new(), |mut paths, line| {
-            // Extract inline #! comment (e.g. `#!required`) from the line
-            let comment = line.find('#').and_then(|pos| {
-                let c = line[pos..].trim();
-                if c.starts_with("#!") { Some(c.to_string()) } else { None }
-            });
-            let line_content = match line.find('#') {
-                Some(pos) => &line[..pos],
-                None => line.as_str(),
-            };
-            let mut elements = line_content.split_whitespace();
-            if let Some(pattern) = elements.next() {
-                let owners = elements.fold(Vec::new(), |mut result, owner| {
-                    if let Ok(owner) = owner.parse() {
-                        result.push(owner)
-                    }
-                    result
-                });
-                paths.push((make_pattern(pattern), owners, comment))
-            }
-            paths
-        });
+        .enumerate()
+        // Preserve 1-based source line number for MCP full response mode.
+        .map(|(idx, line)| ((idx as u32) + 1, line))
+        .filter(|(_, line)| !line.is_empty() && !line.starts_with('#'))
+        .fold(
+            (Vec::new(), Vec::new()),
+            |(mut paths, mut line_numbers), (line_no, line)| {
+                // Extract any inline `#…` comment from the rule line.
+                // Consumers that only want `#!`-style comments (existing UI)
+                // filter at the call site.
+                let comment = line.find('#').map(|pos| line[pos..].trim().to_string());
+                let line_content = match line.find('#') {
+                    Some(pos) => &line[..pos],
+                    None => line.as_str(),
+                };
+                let mut elements = line_content.split_whitespace();
+                if let Some(pattern) = elements.next() {
+                    let owners = elements.fold(Vec::new(), |mut result, owner| {
+                        if let Ok(owner) = owner.parse() {
+                            result.push(owner)
+                        }
+                        result
+                    });
+                    paths.push((make_pattern(pattern), owners, comment));
+                    line_numbers.push(line_no);
+                }
+                (paths, line_numbers)
+            },
+        );
     // last match takes precedence
     paths.reverse();
-    let meta = build_meta(&paths);
+    line_numbers.reverse();
+    let meta = build_meta(&paths, &line_numbers);
     Owners { paths, meta }
 }
 
 /// Compute the per-rule `RuleMeta` derived from `paths`. Kept as a free
 /// function so both `from_reader` and the tests-only constructor can share it.
-fn build_meta(paths: &[(Pattern, Vec<Owner>, Option<String>)]) -> Vec<RuleMeta> {
+/// `line_numbers` is a parallel Vec (same length + same order as `paths`);
+/// pass an empty slice for tests-only constructors that don't care about
+/// line numbers — meta entries will get `line_number = 0` in that case.
+fn build_meta(
+    paths: &[(Pattern, Vec<Owner>, Option<String>)],
+    line_numbers: &[u32],
+) -> Vec<RuleMeta> {
     paths
         .iter()
-        .map(|(pattern, _, _)| {
+        .enumerate()
+        .map(|(i, (pattern, _, _))| {
             let s = pattern.as_str();
             RuleMeta {
                 options: glob::MatchOptions {
@@ -348,6 +390,7 @@ fn build_meta(paths: &[(Pattern, Vec<Owner>, Option<String>)]) -> Vec<RuleMeta> 
                     require_literal_leading_dot: false,
                 },
                 ends_with_slash_star: s.ends_with("/*"),
+                line_number: line_numbers.get(i).copied().unwrap_or(0),
             }
         })
         .collect()
@@ -452,7 +495,7 @@ apps/ @octocat
                 None,
             ),
         ];
-        let expected_meta = build_meta(&expected_paths);
+        let expected_meta = build_meta(&expected_paths, &[]);
         assert_eq!(
             owners,
             Owners {

@@ -3,7 +3,6 @@
 use std::{
     collections::HashMap,
     path::Path,
-    process::Command,
     sync::{
         atomic::{AtomicU32, Ordering},
         Mutex,
@@ -14,7 +13,12 @@ use std::{
 use ahash::AHashMap;
 use rayon::prelude::*;
 
+pub mod agent_installer;
+pub mod app_config;
+pub mod codeowners_engine;
 pub mod codeowners_file_parser;
+pub mod mcp;
+pub mod mcp_commands;
 use serde::ser::{SerializeStruct, Serializer};
 use serde::Serialize;
 use tauri::Manager;
@@ -22,12 +26,37 @@ use tauri::Manager;
 extern crate pretty_assertions;
 
 fn main() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to build tokio runtime for MCP");
+    let rt_handle = rt.handle().clone();
+
     tauri::Builder::default()
+        .manage(mcp_commands::McpRuntime::new(rt_handle))
+        // Keep the runtime alive for as long as the app is running.
+        .manage(rt)
+        .setup(|app| {
+            mcp_commands::on_startup(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_branch_files,
             get_all_codeowners_for_branch,
             get_changed_codeowners_for_branch,
             get_codeowners_for_branch_file,
+            mcp_commands::mcp_get_status,
+            mcp_commands::mcp_start,
+            mcp_commands::mcp_stop,
+            mcp_commands::mcp_restart,
+            mcp_commands::mcp_log_list,
+            mcp_commands::mcp_log_get,
+            mcp_commands::mcp_log_clear,
+            mcp_commands::mcp_reload_config,
+            mcp_commands::agent_status,
+            mcp_commands::agent_install_preview,
+            mcp_commands::agent_install,
+            mcp_commands::agent_uninstall,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -75,11 +104,17 @@ fn get_changed_codeowners_for_branch(abs_repo_path: &str, branch: &str) -> Strin
             continue;
         }
         // Combined lookup: one pattern scan yields both owners and the
-        // rule's inline `#!` comment. Halves the matching work compared
+        // rule's inline comment. Halves the matching work compared
         // to calling `of()` + `comment_of()` back-to-back.
+        //
+        // Parser records every inline `#…` comment now (broadened for the
+        // MCP tool); the existing UI historically only surfaced
+        // `#!…`-style directives, so we keep that filter here.
         let (owners_opt, comment_opt) = codeowners.of_with_comment(file_path);
         let owner_team = get_joined_codeowners(owners_opt);
-        let comment = comment_opt.map(|s| s.to_string());
+        let comment = comment_opt
+            .filter(|s| s.starts_with("#!"))
+            .map(|s| s.to_string());
         let frontend_file = FrontendFile { path: file_path.to_string(), comment };
 
         owners_dictionary
@@ -98,64 +133,17 @@ fn get_changed_codeowners_for_branch(abs_repo_path: &str, branch: &str) -> Strin
 
 /** Returns difference as list of changed files between passed branch and main */
 fn get_branch_diff(abs_repo_path: &str, branch: &str) -> String {
-    let output = Command::new("git")
-        .current_dir(abs_repo_path)
-        .arg("--no-pager")
-        .arg("diff")
-        .arg("--name-only")
-        .arg(format!("origin/main...{branch}"))
-        .output()
-        .expect("git command failed");
-
-    if !output.status.success() {
-        println!("Error: {}", String::from_utf8_lossy(&output.stderr));
-    }
-    let content: String = String::from_utf8_lossy(&output.stdout).to_string();
-    content
+    codeowners_engine::get_branch_diff(abs_repo_path, branch)
 }
 
 /** Return all files in the repo for passed branch */
 fn get_branch_files_vector(abs_repo_path: &str, branch: &str) -> Vec<String> {
-    let output = Command::new("git")
-        .current_dir(abs_repo_path)
-        .arg("ls-tree")
-        .arg("-r")
-        .arg(branch)
-        .arg("--name-only")
-        .output()
-        .expect("git command failed");
-
-    if !output.status.success() {
-        println!("Error: {}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    let mut branch_files: Vec<String> = Vec::new();
-    for file_path in String::from_utf8_lossy(&output.stdout)
-        .to_string()
-        .split("\n")
-    {
-        // it is for latest line
-        if !file_path.is_empty() {
-            branch_files.push(file_path.to_string());
-        }
-    }
-    branch_files
+    codeowners_engine::get_branch_files_vector(abs_repo_path, branch)
 }
 
 /** Returns comments for codeowners file of passed branch */
 fn get_codeowners_content(abs_repo_path: &str, branch: &str) -> String {
-    let output = Command::new("git")
-        .current_dir(abs_repo_path)
-        .arg("--no-pager")
-        .arg("show")
-        .arg(format!("{branch}:CODEOWNERS"))
-        .output()
-        .expect("git command failed");
-    if !output.status.success() {
-        println!("Error: {}", String::from_utf8_lossy(&output.stderr));
-    }
-    let content: String = String::from_utf8_lossy(&output.stdout).to_string();
-    content
+    codeowners_engine::get_codeowners_content_at_ref(abs_repo_path, branch, "CODEOWNERS")
 }
 
 fn get_joined_codeowners(
@@ -250,7 +238,7 @@ fn get_all_codeowners_for_branch_struct(
     // directories. The final combine-with-parent pass is O(unique dirs)
     // integer work and runs serially.
     // -------------------------------------------------------------------
-    let ancestor_cache = build_ancestor_cache(&codeowners, &files);
+    let ancestor_cache = codeowners_engine::build_ancestor_cache(&codeowners, &files);
 
     // -------------------------------------------------------------------
     // Phase 2: resolve every file in parallel using the cache.
@@ -274,7 +262,7 @@ fn get_all_codeowners_for_branch_struct(
                 .iter()
                 .map(|file| {
                     let path = Path::new(file);
-                    let ancestor = ancestor_index_for(&ancestor_cache, path);
+                    let ancestor = codeowners_engine::ancestor_index_for(&ancestor_cache, path);
                     codeowners.of_index_with_ancestor(path, ancestor)
                 })
                 .collect();
@@ -341,119 +329,6 @@ fn get_all_codeowners_for_branch_struct(
         }
     }
     result
-}
-
-/// Precompute `ancestor_first_i(dir)` for every unique parent directory
-/// appearing in `files`. The result maps the canonical directory string
-/// (as produced by `Path::to_str()`) to the first rule index that matches
-/// the directory or one of its ancestors, ignoring rules ending with `/*`.
-///
-/// Runs in three passes:
-///   1. Collect every unique directory (including all ancestors) — cheap.
-///   2. Compute `direct_match_index_at` for each unique directory in
-///      parallel across rayon workers — this is the pattern-matching heavy
-///      pass, and the reason we parallelize it.
-///   3. Serially combine each directory's direct match with its parent's
-///      cached ancestor result. This is bounded by directory depth and
-///      pure integer work, so a single-threaded sweep is fine.
-fn build_ancestor_cache(
-    codeowners: &codeowners_file_parser::Owners,
-    files: &[String],
-) -> AHashMap<String, Option<usize>> {
-    // Pass 1: gather unique directories, including all ancestors.
-    let mut unique_dirs: AHashMap<String, ()> = AHashMap::new();
-    for file in files {
-        let path = Path::new(file);
-        let mut cur = path.parent();
-        while let Some(dir) = cur {
-            let key = dir.to_str().unwrap_or("");
-            // If this dir was already inserted we can stop — every
-            // ancestor above it is also already in the set.
-            if unique_dirs.insert(key.to_string(), ()).is_some() {
-                break;
-            }
-            cur = dir.parent();
-        }
-    }
-    let dirs: Vec<String> = unique_dirs.into_keys().collect();
-
-    // Pass 2: parallel direct-match probe. This is the expensive part —
-    // each `direct_match_index_at` call scans up to P patterns. Doing it
-    // in parallel across cores yields the biggest win for repos with
-    // thousands of unique directories.
-    let direct: Vec<(String, Option<usize>)> = dirs
-        .par_iter()
-        .map(|d| {
-            let idx = codeowners.direct_match_index_at(Path::new(d));
-            (d.clone(), idx)
-        })
-        .collect();
-    let mut direct_map: AHashMap<String, Option<usize>> =
-        AHashMap::with_capacity(direct.len());
-    for (d, i) in direct {
-        direct_map.insert(d, i);
-    }
-
-    // Pass 3: serial ancestor combine. Each directory's ancestor result is
-    // `min(direct(self), ancestor(parent))`. Because we already have every
-    // ancestor in `direct_map`, the recursive helper is guaranteed to
-    // terminate quickly and each memoized entry is computed exactly once.
-    let mut cache: AHashMap<String, Option<usize>> =
-        AHashMap::with_capacity(direct_map.len());
-    // Snapshot the keys so we can iterate while also mutating `cache`.
-    let keys: Vec<String> = direct_map.keys().cloned().collect();
-    for k in keys {
-        combine_ancestor_index(&direct_map, &mut cache, &k);
-    }
-    cache
-}
-
-/// Recursive combine step for [`build_ancestor_cache`]. Populates `cache`
-/// for `dir_key` by merging its own direct match (looked up in `direct`)
-/// with its parent's already-cached ancestor result.
-fn combine_ancestor_index(
-    direct: &AHashMap<String, Option<usize>>,
-    cache: &mut AHashMap<String, Option<usize>>,
-    dir_key: &str,
-) -> Option<usize> {
-    if let Some(v) = cache.get(dir_key) {
-        return *v;
-    }
-    let self_match = direct.get(dir_key).copied().flatten();
-    let parent_match = match Path::new(dir_key).parent() {
-        Some(p) => {
-            let pk = p.to_str().unwrap_or("");
-            if pk.is_empty() && dir_key.is_empty() {
-                None
-            } else if direct.contains_key(pk) {
-                combine_ancestor_index(direct, cache, pk)
-            } else {
-                None
-            }
-        }
-        None => None,
-    };
-    let result = match (self_match, parent_match) {
-        (Some(a), Some(b)) => Some(a.min(b)),
-        (Some(a), None) => Some(a),
-        (None, Some(b)) => Some(b),
-        (None, None) => None,
-    };
-    cache.insert(dir_key.to_string(), result);
-    result
-}
-
-/// Read the ancestor-first-index for a file's parent directory out of the
-/// cache. Files with no parent (bare filenames) fall back to `None`, which
-/// makes `Owners::of_index_with_ancestor` fall through to a full pattern
-/// scan — equivalent to the original algorithm's behavior for such paths.
-fn ancestor_index_for(
-    cache: &AHashMap<String, Option<usize>>,
-    file_path: &Path,
-) -> Option<usize> {
-    let parent = file_path.parent()?;
-    let key = parent.to_str().unwrap_or("");
-    cache.get(key).copied().flatten()
 }
 
 struct FileOwners {

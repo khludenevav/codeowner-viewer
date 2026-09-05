@@ -43,16 +43,18 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           {appConfigResponse.status === 'pending' && <div>Loading app config...</div>}
 
           {appConfigResponse.status === 'success' && (
-            <div className='flex flex-col gap-4'>
-              <div>Application config:</div>
-              <pre className='text-xs bg-muted rounded-md p-3 overflow-x-auto'>
-                {JSON.stringify(appConfigResponse.data, null, 2)}
-              </pre>
-              <div className='flex gap-2 flex-wrap md:flex-nowrap'>
-                <Button onClick={resetEntireAppConfig} variant='destructive' size='sm'>
-                  Reset entire app config
-                </Button>
-              </div>
+            <div className='flex flex-col gap-6'>
+              <section className='flex flex-col gap-2'>
+                <div className='text-sm font-medium'>Application config</div>
+                <pre className='text-xs bg-muted rounded-md p-3 overflow-x-auto'>
+                  {JSON.stringify(appConfigResponse.data, null, 2)}
+                </pre>
+                <div className='flex gap-2 flex-wrap md:flex-nowrap'>
+                  <Button onClick={resetEntireAppConfig} variant='destructive' size='sm'>
+                    Reset entire app config
+                  </Button>
+                </div>
+              </section>
             </div>
           )}
         </div>

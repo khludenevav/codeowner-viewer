@@ -24,6 +24,24 @@ regex = "1.10.6"
 lazy_static = "1.5.0"
 rayon = "1.10"
 ahash = "0.8"
+# MCP server + dependencies
+rmcp = { version = "0.9", features = ["server", "transport-streamable-http-server", "macros", "base64"] }
+schemars = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "signal", "time", "net"] }
+axum = "0.8"
+tower = "0.5"
+hyper = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+toml_edit = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+thiserror = "1"
+rand = "0.9"
+tokio-util = { version = "0.7", features = ["rt"] }
+
+[dev-dependencies]
+tempfile = "3"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

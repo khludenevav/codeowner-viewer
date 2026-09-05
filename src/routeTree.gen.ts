@@ -11,12 +11,18 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/~__root'
+import { Route as McpImport } from './routes/~mcp'
 import { Route as IndexImport } from './routes/~index'
 import { Route as RepositoriesRepositoryIdFileOwnerImport } from './routes/~repositories/~$repositoryId/~file-owner'
 import { Route as RepositoriesRepositoryIdCodeownersImport } from './routes/~repositories/~$repositoryId/~codeowners'
 import { Route as RepositoriesRepositoryIdAllOwnersImport } from './routes/~repositories/~$repositoryId/~all-owners'
 
 // Create/Update Routes
+
+const McpRoute = McpImport.update({
+  path: '/mcp',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const IndexRoute = IndexImport.update({
   path: '/',
@@ -52,6 +58,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpImport
+      parentRoute: typeof rootRoute
+    }
     '/repositories/$repositoryId/all-owners': {
       id: '/repositories/$repositoryId/all-owners'
       path: '/repositories/$repositoryId/all-owners'
@@ -80,6 +93,7 @@ declare module '@tanstack/react-router' {
 
 export const routeTree = rootRoute.addChildren({
   IndexRoute,
+  McpRoute,
   RepositoriesRepositoryIdAllOwnersRoute,
   RepositoriesRepositoryIdCodeownersRoute,
   RepositoriesRepositoryIdFileOwnerRoute,
@@ -94,6 +108,7 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "~__root.tsx",
       "children": [
         "/",
+        "/mcp",
         "/repositories/$repositoryId/all-owners",
         "/repositories/$repositoryId/codeowners",
         "/repositories/$repositoryId/file-owner"
@@ -101,6 +116,9 @@ export const routeTree = rootRoute.addChildren({
     },
     "/": {
       "filePath": "~index.tsx"
+    },
+    "/mcp": {
+      "filePath": "~mcp.tsx"
     },
     "/repositories/$repositoryId/all-owners": {
       "filePath": "~repositories/~$repositoryId/~all-owners.tsx"
