@@ -94,8 +94,10 @@ export const AppUpdater: React.FC = () => {
             {suggestUpdateDialogData?.releaseNotes && (
               <>
                 <div>Release notes:</div>
-                <div className='ml-2 whitespace-pre-line'>
-                  {suggestUpdateDialogData.releaseNotes}
+                <div className='ml-2'>
+                  {suggestUpdateDialogData.releaseNotes.split(/\r?\n/).map((line, i) => (
+                    <div key={i}>{line.length > 0 ? line : '\u00A0'}</div>
+                  ))}
                 </div>
               </>
             )}

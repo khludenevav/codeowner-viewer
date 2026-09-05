@@ -10,7 +10,7 @@ Release process:
 - Use `## <version>` to start a new entry and `-` bullets for the notes.
 -->
 
-## 0.15.1
+## 0.15.2
 
 - Added an MCP server so local coding agents can query CODEOWNERS over the Model Context Protocol.
 - The app now reacts to system theme changes at runtime.
