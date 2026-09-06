@@ -10,92 +10,95 @@
 
 // Import Routes
 
-import { Route as rootRoute } from './routes/~__root';
-import { Route as McpImport } from './routes/~mcp';
-import { Route as ChangelogImport } from './routes/~changelog';
-import { Route as IndexImport } from './routes/~index';
-import { Route as RepositoriesRepositoryIdFileOwnerImport } from './routes/~repositories/~$repositoryId/~file-owner';
-import { Route as RepositoriesRepositoryIdCodeownersImport } from './routes/~repositories/~$repositoryId/~codeowners';
-import { Route as RepositoriesRepositoryIdAllOwnersImport } from './routes/~repositories/~$repositoryId/~all-owners';
+import { Route as rootRoute } from './routes/~__root'
+import { Route as McpImport } from './routes/~mcp'
+import { Route as ChangelogImport } from './routes/~changelog'
+import { Route as IndexImport } from './routes/~index'
+import { Route as RepositoriesRepositoryIdFileOwnerImport } from './routes/~repositories/~$repositoryId/~file-owner'
+import { Route as RepositoriesRepositoryIdCodeownersImport } from './routes/~repositories/~$repositoryId/~codeowners'
+import { Route as RepositoriesRepositoryIdAllOwnersImport } from './routes/~repositories/~$repositoryId/~all-owners'
 
 // Create/Update Routes
 
 const McpRoute = McpImport.update({
   path: '/mcp',
   getParentRoute: () => rootRoute,
-} as any);
+} as any)
 
 const ChangelogRoute = ChangelogImport.update({
   path: '/changelog',
   getParentRoute: () => rootRoute,
-} as any);
+} as any)
 
 const IndexRoute = IndexImport.update({
   path: '/',
   getParentRoute: () => rootRoute,
-} as any);
+} as any)
 
-const RepositoriesRepositoryIdFileOwnerRoute = RepositoriesRepositoryIdFileOwnerImport.update({
-  path: '/repositories/$repositoryId/file-owner',
-  getParentRoute: () => rootRoute,
-} as any);
+const RepositoriesRepositoryIdFileOwnerRoute =
+  RepositoriesRepositoryIdFileOwnerImport.update({
+    path: '/repositories/$repositoryId/file-owner',
+    getParentRoute: () => rootRoute,
+  } as any)
 
-const RepositoriesRepositoryIdCodeownersRoute = RepositoriesRepositoryIdCodeownersImport.update({
-  path: '/repositories/$repositoryId/codeowners',
-  getParentRoute: () => rootRoute,
-} as any);
+const RepositoriesRepositoryIdCodeownersRoute =
+  RepositoriesRepositoryIdCodeownersImport.update({
+    path: '/repositories/$repositoryId/codeowners',
+    getParentRoute: () => rootRoute,
+  } as any)
 
-const RepositoriesRepositoryIdAllOwnersRoute = RepositoriesRepositoryIdAllOwnersImport.update({
-  path: '/repositories/$repositoryId/all-owners',
-  getParentRoute: () => rootRoute,
-} as any);
+const RepositoriesRepositoryIdAllOwnersRoute =
+  RepositoriesRepositoryIdAllOwnersImport.update({
+    path: '/repositories/$repositoryId/all-owners',
+    getParentRoute: () => rootRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
-      id: '/';
-      path: '/';
-      fullPath: '/';
-      preLoaderRoute: typeof IndexImport;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
     '/changelog': {
-      id: '/changelog';
-      path: '/changelog';
-      fullPath: '/changelog';
-      preLoaderRoute: typeof ChangelogImport;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof ChangelogImport
+      parentRoute: typeof rootRoute
+    }
     '/mcp': {
-      id: '/mcp';
-      path: '/mcp';
-      fullPath: '/mcp';
-      preLoaderRoute: typeof McpImport;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpImport
+      parentRoute: typeof rootRoute
+    }
     '/repositories/$repositoryId/all-owners': {
-      id: '/repositories/$repositoryId/all-owners';
-      path: '/repositories/$repositoryId/all-owners';
-      fullPath: '/repositories/$repositoryId/all-owners';
-      preLoaderRoute: typeof RepositoriesRepositoryIdAllOwnersImport;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/repositories/$repositoryId/all-owners'
+      path: '/repositories/$repositoryId/all-owners'
+      fullPath: '/repositories/$repositoryId/all-owners'
+      preLoaderRoute: typeof RepositoriesRepositoryIdAllOwnersImport
+      parentRoute: typeof rootRoute
+    }
     '/repositories/$repositoryId/codeowners': {
-      id: '/repositories/$repositoryId/codeowners';
-      path: '/repositories/$repositoryId/codeowners';
-      fullPath: '/repositories/$repositoryId/codeowners';
-      preLoaderRoute: typeof RepositoriesRepositoryIdCodeownersImport;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/repositories/$repositoryId/codeowners'
+      path: '/repositories/$repositoryId/codeowners'
+      fullPath: '/repositories/$repositoryId/codeowners'
+      preLoaderRoute: typeof RepositoriesRepositoryIdCodeownersImport
+      parentRoute: typeof rootRoute
+    }
     '/repositories/$repositoryId/file-owner': {
-      id: '/repositories/$repositoryId/file-owner';
-      path: '/repositories/$repositoryId/file-owner';
-      fullPath: '/repositories/$repositoryId/file-owner';
-      preLoaderRoute: typeof RepositoriesRepositoryIdFileOwnerImport;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/repositories/$repositoryId/file-owner'
+      path: '/repositories/$repositoryId/file-owner'
+      fullPath: '/repositories/$repositoryId/file-owner'
+      preLoaderRoute: typeof RepositoriesRepositoryIdFileOwnerImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -108,7 +111,7 @@ export const routeTree = rootRoute.addChildren({
   RepositoriesRepositoryIdAllOwnersRoute,
   RepositoriesRepositoryIdCodeownersRoute,
   RepositoriesRepositoryIdFileOwnerRoute,
-});
+})
 
 /* prettier-ignore-end */
 

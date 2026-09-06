@@ -10,9 +10,15 @@ Release process:
 - Use `## <version>` to start a new entry and `-` bullets for the notes.
 -->
 
-## 0.17.0
+## 0.17.1
 
 - "Error in restarting app automatically" on update is expected.
+- Updated internal tools.
+- Fixed update dialog scroll.
+
+## 0.17.0
+
+
 - Branch changes: added an "Uncommitted changes" toggle (on by default) that merges the working-tree diff (staged + unstaged + untracked) into the list of changed files. The toggle is disabled visually when a non-HEAD branch is selected but the user's preference is preserved and re-applied automatically when HEAD is picked again.
 - MCP `get_codeowners`: response is now a compact DSL body (not JSON), with `responseMode` collapsed to `compact` (default) / `full`. Responses over 50 KB are truncated in-place with a `fullDumpPath:` header pointing at the untruncated dump. Log rows show response size. **Breaking:** the removed `responseMode: "normal"` value is no longer accepted.
 - MCP `get_codeowners`: added optional `maxDepth` input to cap how deep the tree recurses below each entry of `paths` (depth 0 = the requested path itself). Subtrees past the budget are collapsed in place; uniform ones render as `dir/ <rule>` and mixed ones as `[id:count,…] TRUNCATED`. Same TRUNCATED shape is now emitted by the size guard, and includes per-rule file counts so agents can see the ownership breakdown of a hidden subtree at a glance.
