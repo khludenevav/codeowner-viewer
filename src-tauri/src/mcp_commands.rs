@@ -17,6 +17,7 @@ use crate::{
     app_config::AppConfigStore,
     mcp::{
         self,
+        dump_store::DumpStore,
         log_store::{McpLogEntry, McpLogStore, RETENTION_DAYS},
         McpServerHandle, McpStatus,
     },
@@ -29,6 +30,7 @@ pub struct McpRuntime {
     tokio: TokioHandle,
     app_config: RwLock<Option<Arc<AppConfigStore>>>,
     log_store: RwLock<Option<Arc<McpLogStore>>>,
+    dump_store: RwLock<Option<Arc<DumpStore>>>,
     server: Mutex<Option<McpServerHandle>>,
     status: RwLock<McpStatus>,
 }
@@ -39,6 +41,7 @@ impl McpRuntime {
             tokio,
             app_config: RwLock::new(None),
             log_store: RwLock::new(None),
+            dump_store: RwLock::new(None),
             server: Mutex::new(None),
             status: RwLock::new(McpStatus {
                 running: false,
@@ -54,6 +57,12 @@ impl McpRuntime {
             *s = status.clone();
         }
         let _ = app.emit("mcp-status-changed", status);
+    }
+
+    /// Snapshot the current AppConfigStore (if initialized), for use by
+    /// Tauri commands that need to resolve a repo path.
+    pub fn app_config_store(&self) -> Option<Arc<AppConfigStore>> {
+        self.app_config.read().ok().and_then(|g| g.clone())
     }
 }
 
@@ -88,6 +97,12 @@ pub fn on_startup(app: AppHandle) {
     };
     if let Ok(mut guard) = runtime.log_store.write() {
         *guard = Some(log.clone());
+    }
+
+    // Set up the dump store (used for truncated tool responses).
+    let dump = Arc::new(DumpStore::open(&data_dir));
+    if let Ok(mut guard) = runtime.dump_store.write() {
+        *guard = Some(dump.clone());
     }
 
     // Daily prune.
@@ -151,9 +166,13 @@ fn start_server(app: &AppHandle, port: u16) {
         Some(l) => l,
         None => return,
     };
+    let dump = match runtime.dump_store.read().ok().and_then(|g| g.clone()) {
+        Some(d) => d,
+        None => return,
+    };
     let app_for_status = app.clone();
     let handle = runtime.tokio.spawn(async move {
-        match mcp::start(port, store, log).await {
+        match mcp::start(port, store, log, dump).await {
             Ok(handle) => {
                 let runtime = app_for_status.state::<McpRuntime>();
                 if let Ok(mut guard) = runtime.server.lock() {

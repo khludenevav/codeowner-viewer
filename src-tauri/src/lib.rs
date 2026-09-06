@@ -49,6 +49,7 @@ pub fn run() {
             get_all_codeowners_for_branch,
             get_changed_codeowners_for_branch,
             get_codeowners_for_branch_file,
+            export_codeowners_for_branch,
             mcp_commands::mcp_get_status,
             mcp_commands::mcp_start,
             mcp_commands::mcp_stop,
@@ -94,19 +95,74 @@ fn get_codeowners_for_branch_file(abs_repo_path: &str, branch: &str, file: &str)
     get_joined_codeowners(codeowners.of(file)).unwrap_or(String::from(""))
 }
 
-/** Key is team or empty, value is changed files for branch */
+/// Build the JSON `codeowners-export/v1` payload for the given repo +
+/// branch, honoring optional owner/extension filters. Returns the
+/// serialized JSON string so the frontend can write it to a
+/// user-picked location. Uses the same builder as the MCP
+/// `export_codeowners` tool → output is byte-identical.
 #[tauri::command(async)]
-fn get_changed_codeowners_for_branch(abs_repo_path: &str, branch: &str) -> String {
+fn export_codeowners_for_branch(
+    abs_repo_path: &str,
+    branch: &str,
+    owners: Option<Vec<String>>,
+    extensions: Option<Vec<String>>,
+    runtime: tauri::State<'_, mcp_commands::McpRuntime>,
+) -> Result<String, String> {
+    let store = runtime
+        .app_config_store()
+        .ok_or_else(|| "app config not initialized".to_string())?;
+
+    let repo = mcp::repo_resolver::resolve(&store, abs_repo_path)
+        .map_err(|e| e.to_string())?;
+
+    let filters = mcp::export_builder::ExportFilters { owners, extensions };
+    let payload = mcp::export_builder::build_export_payload(&repo, branch, &filters)
+        .map_err(|e| e.to_string())?;
+
+    serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())
+}
+
+/** Key is team or empty, value is changed files for branch.
+ *
+ * When `include_uncommitted` is true, working-tree changes (staged +
+ * unstaged + untracked) are merged with the branch/main diff and
+ * deduplicated. The UI only enables this toggle when the selected
+ * branch matches HEAD, but the backend does not enforce that — callers
+ * decide when it applies.
+ */
+#[tauri::command(async)]
+fn get_changed_codeowners_for_branch(
+    abs_repo_path: &str,
+    branch: &str,
+    include_uncommitted: Option<bool>,
+) -> String {
     let codeowners_content = get_codeowners_content(abs_repo_path, branch);
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     let branch_diff = get_branch_diff(abs_repo_path, branch);
 
-    let mut owners_dictionary: HashMap<String, Vec<FrontendFile>> = HashMap::new();
-    for file_path in branch_diff.split("\n") {
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut uncommitted_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut files: Vec<String> = Vec::new();
+    for file_path in branch_diff.split('\n') {
         if file_path.is_empty() {
-            // it is for latest line
             continue;
         }
+        if seen.insert(file_path.to_string()) {
+            files.push(file_path.to_string());
+        }
+    }
+    if include_uncommitted.unwrap_or(false) {
+        for file_path in codeowners_engine::get_working_tree_changed_files(abs_repo_path) {
+            uncommitted_set.insert(file_path.clone());
+            if seen.insert(file_path.clone()) {
+                files.push(file_path);
+            }
+        }
+    }
+
+    let mut owners_dictionary: HashMap<String, Vec<FrontendFile>> = HashMap::new();
+    for file_path in &files {
+        let file_path = file_path.as_str();
         // Combined lookup: one pattern scan yields both owners and the
         // rule's inline comment. Halves the matching work compared
         // to calling `of()` + `comment_of()` back-to-back.
@@ -119,12 +175,17 @@ fn get_changed_codeowners_for_branch(abs_repo_path: &str, branch: &str) -> Strin
         let comment = comment_opt
             .filter(|s| s.starts_with("#!"))
             .map(|s| s.to_string());
-        let frontend_file = FrontendFile { path: file_path.to_string(), comment };
+        let uncommitted = uncommitted_set.contains(file_path);
+        let frontend_file = FrontendFile {
+            path: file_path.to_string(),
+            comment,
+            uncommitted,
+        };
 
         owners_dictionary
-            .entry(owner_team.unwrap_or(String::new()))
-            .and_modify(|e| e.push(FrontendFile { path: frontend_file.path.clone(), comment: frontend_file.comment.clone() }))
-            .or_insert(vec![frontend_file]);
+            .entry(owner_team.unwrap_or_default())
+            .or_default()
+            .push(frontend_file);
     }
     let mut result: Vec<FrontendCodeowner> = owners_dictionary
         .into_iter()
@@ -178,6 +239,8 @@ struct AllCodeownersProgressPayload {
 struct FrontendFile {
     path: String,
     comment: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    uncommitted: bool,
 }
 
 struct FrontendCodeowner {

@@ -37,7 +37,17 @@ function CodeownersOutput({
           {`  "${owner}": [\n`}
           {files.map((file, fileIdx) => (
             <span key={file.path}>
-              {`    "${file.path}"${fileIdx < files.length - 1 ? ',' : ''}`}
+              {file.uncommitted ? (
+                <span
+                  className='select-none text-amber-700 dark:text-[#e2c08d]'
+                  title='Uncommitted (working-tree) change'
+                >
+                  {'    • '}
+                </span>
+              ) : (
+                '      '
+              )}
+              {`"${file.path}"${fileIdx < files.length - 1 ? ',' : ''}`}
               {showComments && file.comment && (
                 <span className='select-none text-amber-600 dark:text-amber-400'>
                   {'  '}{file.comment}
@@ -108,13 +118,29 @@ function Codeowners({ repository }: { repository: Repositories }) {
     'codeowners.onlyWithComments',
     false,
   );
+  const [includeUncommittedPref, setIncludeUncommittedPref] = useRepositoryPageState<boolean>(
+    'codeowners.includeUncommitted',
+    true,
+  );
 
   const branchesResponse = useBranches(repository);
   const updateBranchesList = useUpdateBranches(repository);
 
   const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
-  const branchCodeownersResponse = useBranchCodeowners(repository, normalizedSelectedBranch);
-  const updateBranchCodeowners = useUpdateBranchCodeowners(repository, normalizedSelectedBranch);
+  const currentBranch = branchesResponse.data?.current ?? null;
+  const isCurrentBranchSelected =
+    !!currentBranch && !!normalizedSelectedBranch && currentBranch === normalizedSelectedBranch;
+  const effectiveIncludeUncommitted = isCurrentBranchSelected && includeUncommittedPref;
+  const branchCodeownersResponse = useBranchCodeowners(
+    repository,
+    normalizedSelectedBranch,
+    effectiveIncludeUncommitted,
+  );
+  const updateBranchCodeowners = useUpdateBranchCodeowners(
+    repository,
+    normalizedSelectedBranch,
+    effectiveIncludeUncommitted,
+  );
   const branchCodeownersResponseData = branchCodeownersResponse.data;
   const filteredData = useMemo(() => {
     if (!branchCodeownersResponseData) {
@@ -241,6 +267,29 @@ function Codeowners({ repository }: { repository: Repositories }) {
                   onCheckedChange={v => setOnlyWithComments(v === true)}
                 />
                 Only with comments
+              </label>
+            </div>
+
+            <div className='flex flex-col justify-start gap-1 pt-1'>
+              <label
+                className={`flex items-center gap-1 text-xs select-none ${
+                  isCurrentBranchSelected
+                    ? 'cursor-pointer'
+                    : 'cursor-not-allowed opacity-50'
+                }`}
+                title={
+                  isCurrentBranchSelected
+                    ? undefined
+                    : 'Available only when the current (HEAD) branch is selected.'
+                }
+              >
+                <Checkbox
+                  className='h-3.5 w-3.5'
+                  checked={includeUncommittedPref}
+                  disabled={!isCurrentBranchSelected}
+                  onCheckedChange={v => setIncludeUncommittedPref(v === true)}
+                />
+                Uncommitted changes
               </label>
             </div>
           </div>

@@ -30,7 +30,16 @@ export const Route = createFileRoute('/repositories/$repositoryId/all-owners')({
 });
 
 function splitToOwners(owners: string | null): string[] {
-  return owners ? owners.replace(',', '').split(' ') : [];
+  // The backend joins multiple owners with ", " (see codeowners_file_parser
+  // `owner_strings`). String.prototype.replace with a plain-string first
+  // arg only strips the FIRST comma, which used to leave "@x," entries in
+  // the owners set for rules with 3+ owners. Split on comma directly and
+  // trim each fragment so any number of owners is handled correctly.
+  if (!owners) return [];
+  return owners
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
 }
 
 /** filters files by passed predicate */
@@ -219,7 +228,17 @@ function Codeowners({ repository }: { repository: Repositories }) {
                 entityName='file extension'
               />
             )}
-            {filteredRoot && <ExportToFileButton filteredRoot={filteredRoot} />}
+            {filteredRoot && (
+              <ExportToFileButton
+                absRepoPath={repository.repoPath}
+                branch={normalizedSelectedBranch ?? ''}
+                filteredOwners={filteredOwners}
+                filteredExtensions={filteredExtensions}
+                ready={
+                  allCodeownersResponse.status === 'success' && !!normalizedSelectedBranch
+                }
+              />
+            )}
           </div>
 
           <div className='flex gap-2 items-center'>

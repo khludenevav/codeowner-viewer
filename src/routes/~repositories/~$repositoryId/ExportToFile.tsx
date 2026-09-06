@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { DirectoryOwners, FileOwners } from '@/utils/all-owners';
+import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, exists } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
@@ -7,45 +7,37 @@ import { toast } from 'sonner';
 
 const FILENAME = 'codeowners';
 
-async function joinDir(parentDir: string, name: string): Promise<string> {
-  // handling empty string separately or else join adds an extra slash at the start
-  return parentDir === '' ? name : await join(parentDir, name);
+type Props = {
+  absRepoPath: string;
+  branch: string;
+  /** null = no owner filter applied. Set of owner handles otherwise. */
+  filteredOwners: Set<string> | null;
+  /** null = no extension filter applied. Set of extensions otherwise. */
+  filteredExtensions: Set<string> | null;
+  /** Whether the underlying data has finished loading. Used to disable the button while loading. */
+  ready: boolean;
+};
+
+async function fetchExportJson(
+  absRepoPath: string,
+  branch: string,
+  filteredOwners: Set<string> | null,
+  filteredExtensions: Set<string> | null,
+): Promise<string> {
+  return invoke<string>('export_codeowners_for_branch', {
+    absRepoPath,
+    branch,
+    owners: filteredOwners ? Array.from(filteredOwners) : null,
+    extensions: filteredExtensions ? Array.from(filteredExtensions) : null,
+  });
 }
 
-async function getContent(filteredRoot: DirectoryOwners): Promise<string> {
-  /** Key os owner, value - list of paths */
-  const ownersMap = new Map<string, string[]>();
-
-  const addFiles = async (parentDirPath: string, files: FileOwners[]) => {
-    for (const file of files) {
-      let existingRecord = ownersMap.get(file.owner);
-      if (!existingRecord) {
-        existingRecord = [];
-        ownersMap.set(file.owner, existingRecord);
-      }
-      existingRecord.push(await joinDir(parentDirPath, file.name));
-    }
-  };
-
-  const addDirectory = async (parentDirPath: string, dir: DirectoryOwners) => {
-    const currentDirPath = await joinDir(parentDirPath, dir.name);
-    await addFiles(currentDirPath, dir.files);
-    await addDirectories(currentDirPath, dir.directories);
-  };
-
-  const addDirectories = async (parentDirPath: string, dirs: DirectoryOwners[]) => {
-    for (const dir of dirs) {
-      await addDirectory(parentDirPath, dir);
-    }
-  };
-
-  await addFiles('', filteredRoot.files);
-  await addDirectories('', filteredRoot.directories);
-  return JSON.stringify(Object.fromEntries(ownersMap.entries()), null, 2);
-}
-
-async function createFileInSelectedDir(filteredRoot: DirectoryOwners) {
-  // Ask the user to pick a directory
+async function createFileInSelectedDir(
+  absRepoPath: string,
+  branch: string,
+  filteredOwners: Set<string> | null,
+  filteredExtensions: Set<string> | null,
+) {
   const selectedDir = await open({
     directory: true,
     multiple: false,
@@ -61,7 +53,15 @@ async function createFileInSelectedDir(filteredRoot: DirectoryOwners) {
     path = await join(selectedDir, `${FILENAME}${index === 0 ? '' : index}.json`);
     index += 1;
   } while (await exists(path));
-  const contents = await getContent(filteredRoot);
+
+  let contents: string;
+  try {
+    contents = await fetchExportJson(absRepoPath, branch, filteredOwners, filteredExtensions);
+  } catch (e) {
+    toast.error(`Failed to build export payload: ${e}`);
+    return;
+  }
+
   try {
     await writeTextFile(path, contents);
     toast.success(`File saved successfully to ${path}`);
@@ -70,13 +70,21 @@ async function createFileInSelectedDir(filteredRoot: DirectoryOwners) {
   }
 }
 
-type Props = {
-  filteredRoot: DirectoryOwners;
-};
-
-export const ExportToFileButton: React.FC<Props> = ({ filteredRoot }) => {
+export const ExportToFileButton: React.FC<Props> = ({
+  absRepoPath,
+  branch,
+  filteredOwners,
+  filteredExtensions,
+  ready,
+}) => {
   return (
-    <Button variant='outline' onClick={() => createFileInSelectedDir(filteredRoot)}>
+    <Button
+      variant='outline'
+      disabled={!ready}
+      onClick={() =>
+        createFileInSelectedDir(absRepoPath, branch, filteredOwners, filteredExtensions)
+      }
+    >
       Export to json...
     </Button>
   );

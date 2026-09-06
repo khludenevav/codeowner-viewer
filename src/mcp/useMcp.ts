@@ -57,6 +57,7 @@ export type McpLogEntry = {
   response: unknown;
   durationMs: number;
   status: McpLogStatus;
+  responseSizeBytes?: number;
 };
 
 const STATUS_KEY = ['mcp', 'status'];

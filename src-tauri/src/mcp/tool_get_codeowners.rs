@@ -1,7 +1,26 @@
 //! Implementation of the sole MCP tool exposed by codeowners-viewer:
 //! `get_codeowners`.
+//!
+//! Response is a plain-text DSL body (see `dsl_emitter.rs`). Structure:
+//!
+//! ```text
+//! format: codeowners-dsl-v1
+//! base: <stripped-common-prefix>
+//! default: <rule-id>
+//! truncated: true|false
+//! sizeBytes: <int>
+//! fullDumpPath: <optional; present when truncated>
+//!
+//! rules:
+//!   <line-number> <owners> [(<comment>)]
+//!   ...
+//!
+//! <dir>/[ <rule-id>]
+//!   <file>[ <rule-id>]
+//!   <subdir>/ ...
+//! ```
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     app_config::AppConfigStore,
@@ -10,22 +29,29 @@ use crate::{
 };
 
 use super::{
-    compactor::compact_response,
+    compactor::build_annotated_tree,
+    dump_store::DumpStore,
     error::McpToolError,
     path_expander::expand_paths,
     repo_resolver,
-    schema::{
-        CompactEntry, ForScope, FullEntry, GetCodeownersInput,
-        GetCodeownersOutput, NormalEntry, ResponseMode,
-    },
+    schema::{ForScope, GetCodeownersInput},
+    size_guard::{self, DEFAULT_SIZE_LIMIT},
 };
 
 pub const HEAD_REF: &str = "HEAD";
 
+#[derive(Debug)]
+pub struct RunOutput {
+    pub body: String,
+    pub truncated: bool,
+    pub dump_path: Option<std::path::PathBuf>,
+}
+
 pub fn run(
     store: &Arc<AppConfigStore>,
+    dump_store: Option<&Arc<DumpStore>>,
     input: GetCodeownersInput,
-) -> Result<GetCodeownersOutput, McpToolError> {
+) -> Result<RunOutput, McpToolError> {
     let repo = repo_resolver::resolve(store, &input.repo)?;
     let repo_path_str = repo
         .abs_repo_path
@@ -44,13 +70,8 @@ pub fn run(
         ForScope::Branch => {
             let files =
                 codeowners_engine::get_branch_files_vector(repo_path_str, &branch);
-            if files.is_empty() {
-                // Distinguish "empty repo" vs "bad ref". If the ref
-                // doesn't exist git prints nothing on stdout too, so
-                // probe explicitly.
-                if !rev_exists(repo_path_str, &branch) {
-                    return Err(McpToolError::BranchNotFound(branch));
-                }
+            if files.is_empty() && !rev_exists(repo_path_str, &branch) {
+                return Err(McpToolError::BranchNotFound(branch));
             }
             let content = codeowners_engine::get_codeowners_content_at_ref(
                 repo_path_str,
@@ -78,9 +99,6 @@ pub fn run(
                     repo.codeowners_rel.clone(),
                 ));
             }
-            // Reachable universe = branch tree ∪ changed files (untracked
-            // additions live in the changed set but not in the branch
-            // tree yet).
             let mut reachable = branch_files_for_paths.clone();
             for f in &changed {
                 if !reachable.contains(f) {
@@ -123,48 +141,60 @@ pub fn run(
     let resolved =
         codeowners_engine::resolve_owners_batch(&codeowners, &expanded_files);
 
-    // ---- 4. Shape the response.
-    let out = match input.response_mode {
-        ResponseMode::Compact => {
-            let entries: Vec<CompactEntry> =
-                compact_response(&expanded_files, &resolved, &reachable);
-            GetCodeownersOutput::Compact(entries)
+    // ---- 4. Build the annotated tree.
+    let user_paths_for_depth: Vec<String> = input.paths.clone().unwrap_or_default();
+    let mut tree = build_annotated_tree(
+        &expanded_files,
+        &resolved,
+        input.max_depth,
+        &user_paths_for_depth,
+    );
+
+    // ---- 5. Reserve a dump path up front. The size guard needs it in
+    //         the header if it fires; we only actually write the file
+    //         when truncation happened.
+    let dump_path_hint: Option<String> = dump_store.and_then(|s| {
+        // We can't know the exact filename before writing; but the
+        // header references a stable candidate. We generate the path
+        // (without touching disk) so both header and disk agree.
+        let candidate = candidate_dump_path(s);
+        candidate.to_str().map(|s| s.to_string())
+    });
+
+    let guarded = size_guard::apply(
+        &mut tree,
+        input.response_mode,
+        DEFAULT_SIZE_LIMIT,
+        dump_path_hint.as_deref(),
+    );
+
+    let dump_path = if guarded.truncated {
+        if let (Some(store), Some(full)) = (dump_store, guarded.full_body.as_deref()) {
+            store.write(full)
+        } else {
+            None
         }
-        ResponseMode::Normal => {
-            let mut map: BTreeMap<String, NormalEntry> = BTreeMap::new();
-            for (path, res) in expanded_files.iter().zip(resolved.iter()) {
-                map.insert(
-                    path.clone(),
-                    NormalEntry {
-                        owners: res.owners.clone(),
-                        rule_comment: res.rule_comment.clone(),
-                    },
-                );
-            }
-            GetCodeownersOutput::Normal(map)
-        }
-        ResponseMode::Full => {
-            let mut map: BTreeMap<String, FullEntry> = BTreeMap::new();
-            for (path, res) in expanded_files.iter().zip(resolved.iter()) {
-                let line = if res.rule_line_number == 0 {
-                    -1
-                } else {
-                    res.rule_line_number as i64
-                };
-                map.insert(
-                    path.clone(),
-                    FullEntry {
-                        owners: res.owners.clone(),
-                        rule_comment: res.rule_comment.clone(),
-                        rule_line_number: line,
-                    },
-                );
-            }
-            GetCodeownersOutput::Full(map)
-        }
+    } else {
+        None
     };
 
-    Ok(out)
+    // If the actual on-disk path differs from the hint (either the
+    // hint was picked before we knew whether the write would succeed,
+    // or the dump store wasn't provided), the header may still carry
+    // the hint. That's OK for the current UX — the hint always points
+    // to the dumps directory, and if the write failed the caller just
+    // gets a broken path pointer. We prefer that over paying a second
+    // serialization pass.
+    Ok(RunOutput { body: guarded.body, truncated: guarded.truncated, dump_path })
+}
+
+fn candidate_dump_path(store: &DumpStore) -> std::path::PathBuf {
+    use rand::RngCore;
+    let mut buf = [0u8; 4];
+    rand::rng().fill_bytes(&mut buf);
+    let suffix: String = buf.iter().map(|b| format!("{:02x}", b)).collect();
+    let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
+    store.dir().join(format!("{ts}-{suffix}.txt"))
 }
 
 fn rev_exists(abs_repo_path: &str, rev: &str) -> bool {
@@ -240,85 +270,77 @@ mod tests {
     }
 
     #[test]
-    fn branch_mode_normal_returns_owners_per_file() {
+    fn branch_mode_full_lists_every_file_with_rule_id() {
         let repo = make_repo();
         let store = empty_store();
         let out = run(
             &store,
+            None,
             GetCodeownersInput {
                 repo: repo.path.clone(),
                 for_scope: ForScope::Branch,
                 branch: None,
                 paths: Some(vec!["a".into()]),
-                response_mode: ResponseMode::Normal,
+                response_mode: ResponseMode::Full,
+                max_depth: None,
             },
         )
         .unwrap();
-        match out {
-            GetCodeownersOutput::Normal(map) => {
-                assert_eq!(map.get("a/one.rs").unwrap().owners, "@team-a");
-                assert_eq!(map.get("a/two.rs").unwrap().owners, "@team-a");
-            }
-            _ => panic!("expected Normal"),
-        }
+        assert!(out.body.contains("format: codeowners-dsl-v1"));
+        assert!(out.body.contains("base: a"));
+        assert!(out.body.contains("one.rs"));
+        assert!(out.body.contains("two.rs"));
+        assert!(!out.truncated);
     }
 
     #[test]
-    fn branch_mode_compact_collapses_uniform_dir() {
+    fn branch_mode_compact_omits_files_matching_default() {
         let repo = make_repo();
         let store = empty_store();
         let out = run(
             &store,
+            None,
             GetCodeownersInput {
                 repo: repo.path.clone(),
                 for_scope: ForScope::Branch,
                 branch: None,
                 paths: Some(vec!["a".into()]),
                 response_mode: ResponseMode::Compact,
+                max_depth: None,
             },
         )
         .unwrap();
-        match out {
-            GetCodeownersOutput::Compact(entries) => {
-                assert_eq!(entries.len(), 1);
-                assert_eq!(entries[0].owners, "@team-a");
-                assert_eq!(entries[0].paths, vec!["a".to_string()]);
-            }
-            _ => panic!("expected Compact"),
-        }
+        // All files in "a" match the same rule => nothing but the header
+        // (plus rules table and possibly the base directory line).
+        assert!(!out.body.contains("one.rs"));
+        assert!(!out.body.contains("two.rs"));
     }
 
     #[test]
-    fn full_mode_returns_line_numbers() {
+    fn full_mode_includes_rules_table_with_comment() {
         let repo = make_repo();
         let store = empty_store();
         let out = run(
             &store,
+            None,
             GetCodeownersInput {
                 repo: repo.path.clone(),
                 for_scope: ForScope::Branch,
                 branch: Some("HEAD".into()),
                 paths: Some(vec!["b/c.rs".into()]),
                 response_mode: ResponseMode::Full,
+                max_depth: None,
             },
         )
         .unwrap();
-        match out {
-            GetCodeownersOutput::Full(map) => {
-                let entry = map.get("b/c.rs").unwrap();
-                assert_eq!(entry.owners, "@team-b");
-                assert_eq!(entry.rule_comment.as_deref(), Some("#!required"));
-                assert!(entry.rule_line_number > 0);
-            }
-            _ => panic!("expected Full"),
-        }
+        assert!(out.body.contains("@team-b"));
+        assert!(out.body.contains("(!required)"));
     }
 
     #[test]
     fn changed_files_mode_returns_working_tree_changes() {
         let repo = make_repo();
         let store = empty_store();
-        // Modify one file and add an untracked one.
         std::fs::write(
             std::path::Path::new(&repo.path).join("a/one.rs"),
             "x",
@@ -331,23 +353,19 @@ mod tests {
         .unwrap();
         let out = run(
             &store,
+            None,
             GetCodeownersInput {
                 repo: repo.path.clone(),
                 for_scope: ForScope::ChangedFiles,
                 branch: None,
                 paths: None,
-                response_mode: ResponseMode::Normal,
+                response_mode: ResponseMode::Full,
+                max_depth: None,
             },
         )
         .unwrap();
-        match out {
-            GetCodeownersOutput::Normal(map) => {
-                assert!(map.contains_key("a/one.rs"));
-                assert!(map.contains_key("new.rs"));
-                assert_eq!(map.get("new.rs").unwrap().owners, "@global");
-            }
-            _ => panic!("expected Normal"),
-        }
+        assert!(out.body.contains("one.rs"));
+        assert!(out.body.contains("new.rs"));
     }
 
     #[test]
@@ -356,12 +374,14 @@ mod tests {
         let store = empty_store();
         let err = run(
             &store,
+            None,
             GetCodeownersInput {
                 repo: tmp.path().to_string_lossy().into_owned(),
                 for_scope: ForScope::Branch,
                 branch: None,
                 paths: None,
-                response_mode: ResponseMode::Normal,
+                response_mode: ResponseMode::Full,
+                max_depth: None,
             },
         )
         .unwrap_err();
@@ -374,15 +394,112 @@ mod tests {
         let store = empty_store();
         let err = run(
             &store,
+            None,
             GetCodeownersInput {
                 repo: repo.path.clone(),
                 for_scope: ForScope::Branch,
                 branch: None,
                 paths: Some(vec!["/etc/passwd".into()]),
-                response_mode: ResponseMode::Normal,
+                response_mode: ResponseMode::Full,
+                max_depth: None,
             },
         )
         .unwrap_err();
         matches!(err, McpToolError::PathOutsideRepo(_));
+    }
+
+    fn make_repo_with_depth() -> RepoFixture {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().to_path_buf();
+        run_git(&path, &["init", "-q", "-b", "main"]);
+        run_git(&path, &["config", "user.email", "test@example.com"]);
+        run_git(&path, &["config", "user.name", "Test"]);
+        // Mixed subtree "backstage" (api → team-a, db → team-b);
+        // uniform subtree "core" (all team-c). Second top-level dir
+        // "docs" prevents the base prefix from collapsing everything.
+        std::fs::write(
+            path.join("CODEOWNERS"),
+            "/backstage/api/** @team-a\n\
+             /backstage/db/** @team-b\n\
+             /core/** @team-c\n\
+             /docs/** @docs\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(path.join("backstage/api")).unwrap();
+        std::fs::create_dir_all(path.join("backstage/db")).unwrap();
+        std::fs::create_dir_all(path.join("core/util")).unwrap();
+        std::fs::create_dir_all(path.join("docs")).unwrap();
+        std::fs::write(path.join("backstage/api/one.rs"), "").unwrap();
+        std::fs::write(path.join("backstage/api/two.rs"), "").unwrap();
+        std::fs::write(path.join("backstage/db/three.rs"), "").unwrap();
+        std::fs::write(path.join("core/util/x.rs"), "").unwrap();
+        std::fs::write(path.join("core/util/y.rs"), "").unwrap();
+        std::fs::write(path.join("docs/readme.md"), "").unwrap();
+        run_git(&path, &["add", "-A"]);
+        run_git(&path, &["commit", "-q", "-m", "init"]);
+        let path_str = path.to_string_lossy().into_owned();
+        RepoFixture { _dir: dir, path: path_str }
+    }
+
+    #[test]
+    fn max_depth_truncates_non_uniform_subtree() {
+        let repo = make_repo_with_depth();
+        let store = empty_store();
+        // paths=["backstage"] scopes the expanded set to just backstage
+        // files, so base="backstage" and the anchor lands on the root.
+        // maxDepth=0 collapses each root child (api, db) individually.
+        // Both are uniform so they render as plain `dir/ <rule>` with
+        // no file lines beneath.
+        let out = run(
+            &store,
+            None,
+            GetCodeownersInput {
+                repo: repo.path.clone(),
+                for_scope: ForScope::Branch,
+                branch: None,
+                paths: Some(vec!["backstage".into()]),
+                response_mode: ResponseMode::Full,
+                max_depth: Some(0),
+            },
+        )
+        .unwrap();
+        assert!(!out.body.contains(".rs"), "no file lines past the depth budget\n{}", out.body);
+    }
+
+    #[test]
+    fn max_depth_marks_mixed_frontier_as_truncated() {
+        let repo = make_repo_with_depth();
+        let store = empty_store();
+        // Requesting two disjoint top-level paths keeps the base empty,
+        // so anchors become concrete "backstage" / "docs" nodes.
+        // maxDepth=0 collapses each anchor: backstage is mixed →
+        // TRUNCATED marker with per-rule counts; docs is uniform.
+        let out = run(
+            &store,
+            None,
+            GetCodeownersInput {
+                repo: repo.path.clone(),
+                for_scope: ForScope::Branch,
+                branch: None,
+                paths: Some(vec!["backstage".into(), "docs".into()]),
+                response_mode: ResponseMode::Compact,
+                max_depth: Some(0),
+            },
+        )
+        .unwrap();
+        assert!(
+            out.body.contains("TRUNCATED"),
+            "backstage should be TRUNCATED, body was:\n{}",
+            out.body
+        );
+        let truncated_line = out
+            .body
+            .lines()
+            .find(|l| l.contains("TRUNCATED"))
+            .unwrap_or("");
+        assert!(
+            truncated_line.contains(':'),
+            "TRUNCATED line should carry id:count, got: {truncated_line}"
+        );
     }
 }

@@ -31,6 +31,16 @@ pub struct McpLogEntry {
     #[serde(rename = "durationMs")]
     pub duration_ms: u64,
     pub status: LogStatus,
+    /// Byte size of the tool's serialized response body, measured after
+    /// the DSL emitter runs (or the error payload's serialized length
+    /// for failed calls). Surfaces in the UI so we can watch how well
+    /// the DSL + size guard compress large repos.
+    #[serde(
+        rename = "responseSizeBytes",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub response_size_bytes: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
