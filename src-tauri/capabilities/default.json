@@ -13,16 +13,12 @@
     "fs:allow-write-text-file",
     {
       "identifier": "fs:scope",
-      "allow": [
-        { "path": "**" }
-      ]
+      "allow": [{ "path": "**" }]
     },
     "process:allow-restart",
     {
       "identifier": "shell:allow-execute",
-      "allow": [
-        { "name": "run-git-command", "cmd": "git", "args": true }
-      ]
+      "allow": [{ "name": "run-git-command", "cmd": "git", "args": true }]
     },
     "updater:default"
   ]

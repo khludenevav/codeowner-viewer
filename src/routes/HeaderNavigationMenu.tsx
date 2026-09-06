@@ -22,7 +22,11 @@ import { Plug, Plus, SettingsIcon, History, X } from 'lucide-react';
 
 type SectionKey = 'codeowners' | 'file-owner' | 'all-owners';
 
-const SECTIONS: { key: SectionKey; label: string; to: `/repositories/$repositoryId/${SectionKey}` }[] = [
+const SECTIONS: {
+  key: SectionKey;
+  label: string;
+  to: `/repositories/$repositoryId/${SectionKey}`;
+}[] = [
   { key: 'codeowners', label: 'Branch changes', to: '/repositories/$repositoryId/codeowners' },
   { key: 'file-owner', label: 'File owners', to: '/repositories/$repositoryId/file-owner' },
   { key: 'all-owners', label: 'Repo owners', to: '/repositories/$repositoryId/all-owners' },
@@ -194,13 +198,7 @@ function McpHeaderButton() {
         >
           <Plug className='h-4 w-4' />
           <span className='text-xs font-medium'>MCP</span>
-          <span
-            className={cn(
-              'ml-0.5 h-1.5 w-1.5 rounded-full',
-              dotColor,
-            )}
-            aria-hidden='true'
-          />
+          <span className={cn('ml-0.5 h-1.5 w-1.5 rounded-full', dotColor)} aria-hidden='true' />
         </Button>
       </Link>
     </Tooltip>
@@ -276,11 +274,7 @@ type RemoveRepoConfirmDialogProps = {
   repository: Repositories;
 };
 
-function RemoveRepoConfirmDialog({
-  open,
-  onOpenChange,
-  repository,
-}: RemoveRepoConfirmDialogProps) {
+function RemoveRepoConfirmDialog({ open, onOpenChange, repository }: RemoveRepoConfirmDialogProps) {
   const navigate = useNavigate();
   const appConfigResponse = useAppConfig();
   const appConfigUpdate = useUpdateAppConfig();

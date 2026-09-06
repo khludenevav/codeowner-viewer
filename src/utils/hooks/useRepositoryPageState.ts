@@ -54,8 +54,7 @@ export function useRepositoryPageState<T>(
   const setState = useCallback<Dispatch<SetStateAction<T>>>(
     value => {
       setStateInner(prev => {
-        const next =
-          typeof value === 'function' ? (value as (prev: T) => T)(prev) : value;
+        const next = typeof value === 'function' ? (value as (prev: T) => T)(prev) : value;
         getRepositoryBag(repositoryId).set(stateKey, next);
         return next;
       });

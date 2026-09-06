@@ -70,9 +70,7 @@ function ChangelogPage() {
           <History className='h-6 w-6 flex-shrink-0' />
           <h1 className='text-2xl font-semibold'>Changelog</h1>
         </div>
-        {intro.length > 0 && (
-          <p className='text-sm text-muted-foreground'>{intro.join(' ')}</p>
-        )}
+        {intro.length > 0 && <p className='text-sm text-muted-foreground'>{intro.join(' ')}</p>}
       </header>
 
       {entries.length === 0 ? (
@@ -80,10 +78,7 @@ function ChangelogPage() {
       ) : (
         <div className='flex flex-col gap-6'>
           {entries.map(entry => (
-            <section
-              key={entry.version}
-              className='rounded-md border border-border bg-card p-4'
-            >
+            <section key={entry.version} className='rounded-md border border-border bg-card p-4'>
               <h2 className='text-lg font-semibold'>{entry.heading}</h2>
               {entry.paragraphs.length > 0 && (
                 <div className='mt-2 flex flex-col gap-2 text-sm'>

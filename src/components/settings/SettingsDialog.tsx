@@ -3,12 +3,7 @@ import { useCallback } from 'react';
 import { DEFAULT_APP_CONFIG } from '@/app-config/app-config';
 import { useAppConfig, useUpdateAppConfig } from '@/app-config/useAppConfig';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 type SettingsDialogProps = {
   open: boolean;

@@ -29,14 +29,7 @@ function getBranchCodeownersQueryKey(
   branch: string | null,
   includeUncommitted: boolean,
 ) {
-  return [
-    'repo',
-    repositoryId ?? '',
-    'branch',
-    branch ?? '',
-    'codeowners',
-    { includeUncommitted },
-  ];
+  return ['repo', repositoryId ?? '', 'branch', branch ?? '', 'codeowners', { includeUncommitted }];
 }
 
 export function useBranchCodeowners(

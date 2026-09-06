@@ -39,16 +39,10 @@ export const AppUpdater: React.FC = () => {
         if (event.event === 'Started') {
           contentLength = event.data.contentLength;
           downloaded = 0;
-          setEvents(prev => [
-            ...prev,
-            { kind: 'progress', downloaded, total: contentLength },
-          ]);
+          setEvents(prev => [...prev, { kind: 'progress', downloaded, total: contentLength }]);
         } else if (event.event === 'Progress') {
           downloaded += event.data.chunkLength;
-          setEvents(prev => [
-            ...prev,
-            { kind: 'progress', downloaded, total: contentLength },
-          ]);
+          setEvents(prev => [...prev, { kind: 'progress', downloaded, total: contentLength }]);
         } else if (event.event === 'Finished') {
           setEvents(prev => [...prev, { kind: 'finished' }]);
         }
@@ -157,9 +151,7 @@ export const AppUpdater: React.FC = () => {
           <div className='max-h-96 overflow-y-auto'>
             <p>Downloading and installing...</p>
             {errorEvents.length > 0 &&
-              errorEvents.map((eventInfo, i) => (
-                <div key={i}>Error: {eventInfo.message}</div>
-              ))}
+              errorEvents.map((eventInfo, i) => <div key={i}>Error: {eventInfo.message}</div>)}
           </div>
         </DialogContent>
       </Dialog>

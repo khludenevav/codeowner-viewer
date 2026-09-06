@@ -54,7 +54,7 @@ bundled as a native desktop app).
 - Theme switching: [`next-themes`](https://github.com/pacocoursey/next-themes)
 - Icons: [`lucide-react`](https://lucide.dev/) + `file-extension-icon-js`
 - Date formatting: [`dayjs`](https://day.js.org/)
-- Lint/format: ESLint, Prettier
+- Lint/format: ESLint, oxfmt
 
 ### Backend
 

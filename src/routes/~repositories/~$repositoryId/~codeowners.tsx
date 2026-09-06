@@ -2,7 +2,11 @@ import { createFileRoute, Navigate } from '@tanstack/react-router';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
-import { type BranchFile, useBranchCodeowners, useUpdateBranchCodeowners } from '../../../utils/codeowners-command';
+import {
+  type BranchFile,
+  useBranchCodeowners,
+  useUpdateBranchCodeowners,
+} from '../../../utils/codeowners-command';
 import { useAppConfig } from '../../../app-config/useAppConfig';
 import { useCurrentRepository } from '../../../app-config/useCurrentRepository';
 import { Repositories } from '../../../app-config/app-config';
@@ -50,7 +54,8 @@ function CodeownersOutput({
               {`"${file.path}"${fileIdx < files.length - 1 ? ',' : ''}`}
               {showComments && file.comment && (
                 <span className='select-none text-amber-600 dark:text-amber-400'>
-                  {'  '}{file.comment}
+                  {'  '}
+                  {file.comment}
                 </span>
               )}
               {'\n'}
@@ -89,7 +94,9 @@ function CodeownersRoute() {
     return null;
   }
 
-  return <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />;
+  return (
+    <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />
+  );
 }
 
 function Codeowners({ repository }: { repository: Repositories }) {
@@ -100,10 +107,7 @@ function Codeowners({ repository }: { repository: Repositories }) {
     'codeowners.ownerFilter',
     '',
   );
-  const [fileFilter, setFileFilter] = useRepositoryPageState<string>(
-    'codeowners.fileFilter',
-    '',
-  );
+  const [fileFilter, setFileFilter] = useRepositoryPageState<string>('codeowners.fileFilter', '');
   const [ownerFilterDebounced, setOwnerFilterDebounced] = useState(() =>
     ownerFilter.length >= 2 ? ownerFilter : '',
   );
@@ -273,9 +277,7 @@ function Codeowners({ repository }: { repository: Repositories }) {
             <div className='flex flex-col justify-start gap-1 pt-1'>
               <label
                 className={`flex items-center gap-1 text-xs select-none ${
-                  isCurrentBranchSelected
-                    ? 'cursor-pointer'
-                    : 'cursor-not-allowed opacity-50'
+                  isCurrentBranchSelected ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
                 }`}
                 title={
                   isCurrentBranchSelected

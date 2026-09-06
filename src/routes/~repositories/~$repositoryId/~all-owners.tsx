@@ -128,7 +128,9 @@ function CodeownersRoute() {
     return null;
   }
 
-  return <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />;
+  return (
+    <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />
+  );
 }
 
 function Codeowners({ repository }: { repository: Repositories }) {
@@ -234,9 +236,7 @@ function Codeowners({ repository }: { repository: Repositories }) {
                 branch={normalizedSelectedBranch ?? ''}
                 filteredOwners={filteredOwners}
                 filteredExtensions={filteredExtensions}
-                ready={
-                  allCodeownersResponse.status === 'success' && !!normalizedSelectedBranch
-                }
+                ready={allCodeownersResponse.status === 'success' && !!normalizedSelectedBranch}
               />
             )}
           </div>

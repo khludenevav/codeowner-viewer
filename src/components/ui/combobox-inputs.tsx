@@ -58,7 +58,7 @@ export default function ComboboxInput() {
                 if (!e.relatedTarget?.hasAttribute('cmdk-list')) {
                   setSearch(
                     value
-                      ? frameworks.find(framework => framework.value === value)?.label ?? ''
+                      ? (frameworks.find(framework => framework.value === value)?.label ?? '')
                       : '',
                   );
                 }
@@ -92,8 +92,8 @@ export default function ComboboxInput() {
                       setSearch(
                         currentValue === value
                           ? ''
-                          : frameworks.find(framework => framework.value === currentValue)?.label ??
-                              '',
+                          : (frameworks.find(framework => framework.value === currentValue)
+                              ?.label ?? ''),
                       );
                       setOpen(false);
                     }}

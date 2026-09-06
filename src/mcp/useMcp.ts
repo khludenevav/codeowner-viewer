@@ -10,12 +10,7 @@ export type McpStatus = {
   error: string | null;
 };
 
-export type AgentKind =
-  | 'claude_code'
-  | 'codex_cli'
-  | 'copilot_vscode'
-  | 'cursor'
-  | 'windsurf';
+export type AgentKind = 'claude_code' | 'codex_cli' | 'copilot_vscode' | 'cursor' | 'windsurf';
 
 export const AGENT_ORDER: AgentKind[] = [
   'claude_code',

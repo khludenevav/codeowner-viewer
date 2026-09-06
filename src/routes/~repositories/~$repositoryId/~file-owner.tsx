@@ -45,15 +45,19 @@ function CodeownersRoute() {
     return null;
   }
 
-  return <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />;
+  return (
+    <Codeowners key={currentRepository.repository.id} repository={currentRepository.repository} />
+  );
 }
 
 function Codeowners({ repository }: { repository: Repositories }) {
   const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
   const [selectedBranchOption, setSelectedBranchOption] =
     useRepositoryPageState<ComboboxOption | null>('file-owner.selectedBranchOption', null);
-  const [selectedFileOption, setSelectedFileOption] =
-    useRepositoryPageState<ComboboxOption | null>('file-owner.selectedFileOption', null);
+  const [selectedFileOption, setSelectedFileOption] = useRepositoryPageState<ComboboxOption | null>(
+    'file-owner.selectedFileOption',
+    null,
+  );
   const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
   const normalizedSelectedFile = selectedFileOption?.value ?? null;
 

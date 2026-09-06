@@ -76,8 +76,7 @@ function ServerSection() {
     setPortInput(String(configuredPort));
   }, [configuredPort]);
   const parsedPort = Number(portInput);
-  const portValid =
-    Number.isInteger(parsedPort) && parsedPort >= 1024 && parsedPort <= 65535;
+  const portValid = Number.isInteger(parsedPort) && parsedPort >= 1024 && parsedPort <= 65535;
   const portDirty = parsedPort !== configuredPort;
 
   const setEnabled = async (next: boolean) => {
@@ -183,9 +182,7 @@ function ServerSection() {
           )}
         </div>
         {!portValid && (
-          <p className='text-xs text-destructive'>
-            Port must be between 1024 and 65535.
-          </p>
+          <p className='text-xs text-destructive'>Port must be between 1024 and 65535.</p>
         )}
       </div>
       {error && (
@@ -232,15 +229,14 @@ function ToolDescriptionSection() {
     <section className='rounded-lg border p-5'>
       <h2 className='text-lg font-semibold'>What agents can call</h2>
       <p className='mt-2 text-sm text-muted-foreground'>
-        The server exposes four tools:{' '}
-        <code className='rounded bg-muted px-1'>get_codeowners</code> for inline reads (returns a
-        plain-text DSL that encodes ownership as an inheritance tree),{' '}
+        The server exposes four tools: <code className='rounded bg-muted px-1'>get_codeowners</code>{' '}
+        for inline reads (returns a plain-text DSL that encodes ownership as an inheritance tree),{' '}
         <code className='rounded bg-muted px-1'>export_codeowners</code> for scripting (dumps the
         full ownership map to a temp JSON file and returns just the path),{' '}
         <code className='rounded bg-muted px-1'>list_owners</code> for discovering the distinct
         owner handles present in the repo, and{' '}
-        <code className='rounded bg-muted px-1'>owners_stats</code> for per-owner file counts +
-        repo totals. Use <code>get_codeowners</code> when you want to look at data,{' '}
+        <code className='rounded bg-muted px-1'>owners_stats</code> for per-owner file counts + repo
+        totals. Use <code>get_codeowners</code> when you want to look at data,{' '}
         <code>export_codeowners</code> when you want to run Python over it, and{' '}
         <code>list_owners</code> / <code>owners_stats</code> to pick a good filter first.
       </p>
@@ -249,34 +245,35 @@ function ToolDescriptionSection() {
         <p>
           <strong>Inputs:</strong> <code className='rounded bg-muted px-1'>repo</code> (absolute
           path),{' '}
-          <code className='rounded bg-muted px-1'>for = &quot;branch&quot; | &quot;changed_files&quot;</code>
-          , <code className='rounded bg-muted px-1'>branch?</code> (defaults to{' '}
-          <code>HEAD</code>), <code className='rounded bg-muted px-1'>paths?</code>{' '}
-          (repo-root-relative files, directories (recursive), or globs — mixed types OK),{' '}
+          <code className='rounded bg-muted px-1'>
+            for = &quot;branch&quot; | &quot;changed_files&quot;
+          </code>
+          , <code className='rounded bg-muted px-1'>branch?</code> (defaults to <code>HEAD</code>),{' '}
+          <code className='rounded bg-muted px-1'>paths?</code> (repo-root-relative files,
+          directories (recursive), or globs — mixed types OK),{' '}
           <code className='rounded bg-muted px-1'>
             responseMode = &quot;compact&quot; (default) | &quot;full&quot;
           </code>
-          , <code className='rounded bg-muted px-1'>maxDepth?</code> (integer; when set,
-          any subtree deeper than this many levels below each entry of{' '}
-          <code>paths</code> is collapsed. Depth 0 = the path itself; depth 1 = its immediate
-          children. Ignored when <code>paths</code> is empty).
+          , <code className='rounded bg-muted px-1'>maxDepth?</code> (integer; when set, any subtree
+          deeper than this many levels below each entry of <code>paths</code> is collapsed. Depth 0
+          = the path itself; depth 1 = its immediate children. Ignored when <code>paths</code> is
+          empty).
         </p>
         <p>
-          When <code>for = &quot;changed_files&quot;</code> the <code>paths</code> list is
-          additive: omit it for just the working-tree changed set, or include files/dirs/globs
-          to also resolve ownership for those paths (against <code>branch</code>).
+          When <code>for = &quot;changed_files&quot;</code> the <code>paths</code> list is additive:
+          omit it for just the working-tree changed set, or include files/dirs/globs to also resolve
+          ownership for those paths (against <code>branch</code>).
         </p>
         <p>
           <strong>Response modes:</strong> <em>compact</em> emits only exceptions —
-          directories/files whose rule differs from the enclosing default; <em>full</em> lists
-          every file with its rule id.
+          directories/files whose rule differs from the enclosing default; <em>full</em> lists every
+          file with its rule id.
         </p>
         <p>
-          <strong>Size guard.</strong> Responses over 50 KB are pruned by collapsing the
-          heaviest subtree into <code>[id:count,…] TRUNCATED</code>; the untruncated body is
-          dumped to an app-data file and referenced via <code>fullDumpPath:</code> in the
-          header. Agents can then re-request that subtree with a larger{' '}
-          <code>maxDepth</code> to see it inline.
+          <strong>Size guard.</strong> Responses over 50 KB are pruned by collapsing the heaviest
+          subtree into <code>[id:count,…] TRUNCATED</code>; the untruncated body is dumped to an
+          app-data file and referenced via <code>fullDumpPath:</code> in the header. Agents can then
+          re-request that subtree with a larger <code>maxDepth</code> to see it inline.
         </p>
         <details className='rounded-md border bg-muted/40 px-3 py-2 text-xs'>
           <summary className='cursor-pointer font-medium'>DSL grammar</summary>
@@ -320,24 +317,25 @@ Rules:
       <div className='mt-2 space-y-2 text-sm'>
         <p>
           Writes a JSON dump of the whole repo's ownership to a file and returns just{' '}
-          <code>{'{ path, sizeBytes, fileCount, ruleCount, schema }'}</code>. The agent then
-          reads the file with e.g. <code>json.load(open(path))</code> in Python — no third-party
-          libraries required. When <code>path</code> is omitted, the dump lands under the OS
-          temp dir and files matching <code>export-*.json</code> older than 7 days are pruned on
-          each invocation.
+          <code>{'{ path, sizeBytes, fileCount, ruleCount, schema }'}</code>. The agent then reads
+          the file with e.g. <code>json.load(open(path))</code> in Python — no third-party libraries
+          required. When <code>path</code> is omitted, the dump lands under the OS temp dir and
+          files matching <code>export-*.json</code> older than 7 days are pruned on each invocation.
         </p>
         <p>
           <strong>Inputs:</strong> <code className='rounded bg-muted px-1'>repo</code> (absolute
-          path), <code className='rounded bg-muted px-1'>owners?</code>{' '}
-          (<code>string[]</code>; keep files whose owners include any of these — OR within the
-          list), <code className='rounded bg-muted px-1'>extensions?</code>{' '}
-          (<code>string[]</code>; case-insensitive, leading dot ignored),{' '}
-          <code className='rounded bg-muted px-1'>path?</code> (absolute path to write the dump
-          to; overwrites any existing file; parent directories are created; defaults to a fresh
-          file under the OS temp dir). Filters combine as AND. Always full-repo at HEAD.
+          path), <code className='rounded bg-muted px-1'>owners?</code> (<code>string[]</code>; keep
+          files whose owners include any of these — OR within the list),{' '}
+          <code className='rounded bg-muted px-1'>extensions?</code> (<code>string[]</code>;
+          case-insensitive, leading dot ignored),{' '}
+          <code className='rounded bg-muted px-1'>path?</code> (absolute path to write the dump to;
+          overwrites any existing file; parent directories are created; defaults to a fresh file
+          under the OS temp dir). Filters combine as AND. Always full-repo at HEAD.
         </p>
         <details className='rounded-md border bg-muted/40 px-3 py-2 text-xs'>
-          <summary className='cursor-pointer font-medium'>Dump file schema (codeowners-export/v1)</summary>
+          <summary className='cursor-pointer font-medium'>
+            Dump file schema (codeowners-export/v1)
+          </summary>
           <pre className='mt-2 whitespace-pre-wrap font-mono'>{`{
   "schema": "codeowners-export/v1",
   "rules": {
@@ -378,29 +376,28 @@ Rules:
       <h3 className='mt-6 text-base font-semibold'>list_owners</h3>
       <div className='mt-2 space-y-2 text-sm'>
         <p>
-          Returns the distinct owner handles present in the repo at{' '}
-          <code>HEAD</code>, alphabetically sorted. Use this to discover the space of valid
-          owner strings before calling <code>export_codeowners</code> with an{' '}
-          <code>owners[]</code> filter. Unowned files do NOT contribute an entry.
+          Returns the distinct owner handles present in the repo at <code>HEAD</code>,
+          alphabetically sorted. Use this to discover the space of valid owner strings before
+          calling <code>export_codeowners</code> with an <code>owners[]</code> filter. Unowned files
+          do NOT contribute an entry.
         </p>
         <p>
           <strong>Inputs:</strong> <code className='rounded bg-muted px-1'>repo</code> (absolute
           path).
         </p>
         <p>
-          <strong>Output:</strong>{' '}
-          <code>{'{ "owners": ["@team/a", "@team/b", ...] }'}</code>.
+          <strong>Output:</strong> <code>{'{ "owners": ["@team/a", "@team/b", ...] }'}</code>.
         </p>
       </div>
 
       <h3 className='mt-6 text-base font-semibold'>owners_stats</h3>
       <div className='mt-2 space-y-2 text-sm'>
         <p>
-          Returns per-owner file counts + repo-wide totals at <code>HEAD</code>. Use to rank
-          owners by footprint before picking a filter for <code>export_codeowners</code>. A
-          file with N co-owners contributes +1 to each of those N owners, so the sum of
-          per-owner <code>files</code> may exceed <code>totalFiles</code>. Unowned files are
-          counted in <code>unownedFiles</code> but not attributed to any owner.
+          Returns per-owner file counts + repo-wide totals at <code>HEAD</code>. Use to rank owners
+          by footprint before picking a filter for <code>export_codeowners</code>. A file with N
+          co-owners contributes +1 to each of those N owners, so the sum of per-owner{' '}
+          <code>files</code> may exceed <code>totalFiles</code>. Unowned files are counted in{' '}
+          <code>unownedFiles</code> but not attributed to any owner.
         </p>
         <p>
           <strong>Inputs:</strong> <code className='rounded bg-muted px-1'>repo</code> (absolute
@@ -434,8 +431,8 @@ function AgentsSection() {
     <section className='rounded-lg border p-5'>
       <h2 className='text-lg font-semibold'>Install into agents</h2>
       <p className='mt-1 text-sm text-muted-foreground'>
-        One-click install writes an <code>http</code> MCP entry into each agent's own config file.
-        A backup is saved before any change.
+        One-click install writes an <code>http</code> MCP entry into each agent's own config file. A
+        backup is saved before any change.
       </p>
       <div className='mt-4 flex flex-col divide-y rounded-md border'>
         {AGENT_ORDER.map(agent => (
@@ -533,7 +530,11 @@ function AgentRow({ agent }: { agent: AgentKind }) {
   );
 }
 
-function AgentStatePill({ state }: { state: AgentInstallPlan['agent'] extends never ? never : string }) {
+function AgentStatePill({
+  state,
+}: {
+  state: AgentInstallPlan['agent'] extends never ? never : string;
+}) {
   const map: Record<string, [string, string]> = {
     installed: ['Installed', 'bg-green-600 text-white'],
     notInstalled: ['Not installed', 'bg-muted text-muted-foreground'],
@@ -605,10 +606,7 @@ function InstallConfirmDialog({
           <Button variant='outline' onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            onClick={onConfirm}
-            variant={mode === 'uninstall' ? 'destructive' : 'default'}
-          >
+          <Button onClick={onConfirm} variant={mode === 'uninstall' ? 'destructive' : 'default'}>
             {mode === 'install' ? 'Install' : 'Uninstall'}
           </Button>
         </DialogFooter>
@@ -634,15 +632,8 @@ function LogSection() {
           </p>
         </div>
         <div className='flex items-center gap-2'>
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={() => log.refetch()}
-            disabled={log.isFetching}
-          >
-            <RefreshCw
-              className={cn('mr-2 h-4 w-4', log.isFetching && 'animate-spin')}
-            />
+          <Button variant='ghost' size='sm' onClick={() => log.refetch()} disabled={log.isFetching}>
+            <RefreshCw className={cn('mr-2 h-4 w-4', log.isFetching && 'animate-spin')} />
             Refresh
           </Button>
           <Button
