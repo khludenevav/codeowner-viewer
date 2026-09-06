@@ -97,7 +97,7 @@ export const AppUpdater: React.FC = () => {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className='max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]'>
           <DialogHeader>
             <DialogTitle>Update app</DialogTitle>
             <DialogDescription>
@@ -108,7 +108,7 @@ export const AppUpdater: React.FC = () => {
               )}
             </DialogDescription>
           </DialogHeader>
-          <div>
+          <div className='min-h-0 overflow-y-auto'>
             {suggestUpdateDialogData?.releaseNotes && (
               <>
                 <div>Release notes:</div>
