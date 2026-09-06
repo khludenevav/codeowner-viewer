@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { useUpdateFileCodeowners } from '../../../utils/file-codeownets';
 import { useAppConfig } from '../../../app-config/useAppConfig';
@@ -51,22 +51,30 @@ function CodeownersRoute() {
 }
 
 function Codeowners({ repository }: { repository: Repositories }) {
-  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
-  const [selectedBranchOption, setSelectedBranchOption] =
+  const [persistedBranchOption, setSelectedBranchOption] =
     useRepositoryPageState<ComboboxOption | null>('file-owner.selectedBranchOption', null);
-  const [selectedFileOption, setSelectedFileOption] = useRepositoryPageState<ComboboxOption | null>(
-    'file-owner.selectedFileOption',
-    null,
-  );
-  const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
-  const normalizedSelectedFile = selectedFileOption?.value ?? null;
+  const [persistedFileOption, setSelectedFileOption] =
+    useRepositoryPageState<ComboboxOption | null>('file-owner.selectedFileOption', null);
 
   const branchesResponse = useBranches(repository);
+  const { branches: branchOptions, headOption } = useMemo(
+    () =>
+      branchesResponse.status === 'success'
+        ? makeBranchOptions(branchesResponse.data)
+        : { branches: [] as ComboboxOption[], headOption: null as ComboboxOption | null },
+    [branchesResponse.data, branchesResponse.status],
+  );
+  const selectedBranchOption = persistedBranchOption ?? headOption;
+  const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
+
   const filesResponse = useBranchFiles(repository, normalizedSelectedBranch);
   const branchFilesOptions = useMemo(
     () => (filesResponse.status === 'success' ? makeBranchFilesOptions(filesResponse.data) : []),
     [filesResponse.data, filesResponse.status],
   );
+  const selectedFileOption = persistedFileOption ?? branchFilesOptions[0] ?? null;
+  const normalizedSelectedFile = selectedFileOption?.value ?? null;
+
   const updateBranchesList = useUpdateBranches(repository);
 
   const fileCodeownersResponse = useFileCodeowners(
@@ -79,31 +87,6 @@ function Codeowners({ repository }: { repository: Repositories }) {
     normalizedSelectedBranch,
     normalizedSelectedFile,
   );
-
-  useEffect(() => {
-    if (branchesResponse.status === 'success') {
-      const { branches, headOption } = makeBranchOptions(branchesResponse.data);
-      setBranchOptions(branches);
-      if (!selectedBranchOption) {
-        setSelectedBranchOption(headOption);
-      }
-    }
-  }, [
-    branchesResponse.data,
-    branchesResponse.status,
-    selectedBranchOption,
-    setSelectedBranchOption,
-  ]);
-
-  useEffect(() => {
-    if (
-      filesResponse.status === 'success' &&
-      !selectedFileOption &&
-      branchFilesOptions.length > 0
-    ) {
-      setSelectedFileOption(branchFilesOptions[0]);
-    }
-  }, [branchFilesOptions, filesResponse.status, selectedFileOption, setSelectedFileOption]);
 
   return (
     <div className='flex flex-col mx-6 mb-6 max-h-full'>

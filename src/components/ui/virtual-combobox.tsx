@@ -37,6 +37,9 @@ const VirtualizedCommand = ({
   const [filteredOptions, setFilteredOptions] = React.useState<ComboboxOption[]>(options);
   const parentRef = React.useRef(null);
 
+  // @tanstack/react-virtual returns non-memoizable functions, so the React
+  // Compiler intentionally skips this hook. This is expected here.
+  // oxlint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
     count: filteredOptions.length,
     getScrollElement: () => parentRef.current,

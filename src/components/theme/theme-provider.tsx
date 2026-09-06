@@ -1,23 +1,12 @@
 import { ColorTheme, DEFAULT_COLOR_THEME } from '@/app-config/app-config';
 import { useAppConfig, useUpdateAppConfig } from '@/app-config/useAppConfig';
-import { createContext, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { ThemeProviderContext } from './theme-context';
 
 type ThemeProviderProps = {
   children: React.ReactNode;
   defaultTheme?: ColorTheme;
 };
-
-type ThemeProviderState = {
-  theme: ColorTheme;
-  setTheme: (theme: ColorTheme) => void;
-};
-
-const initialState: ThemeProviderState = {
-  theme: 'system',
-  setTheme: () => null,
-};
-
-export const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const appConfigResponse = useAppConfig();

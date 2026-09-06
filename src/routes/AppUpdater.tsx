@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { relaunch } from '@tauri-apps/plugin-process';
 import type { DownloadEvent, Update } from '@tauri-apps/plugin-updater';
 import { useAppCheckUpdate } from '@/utils/useCheckUpdates';
@@ -19,13 +19,24 @@ type UpdateEvent = ProgressEvent | ErrorEvent | FinishedEvent;
 
 export const AppUpdater: React.FC = () => {
   const [events, setEvents] = useState<UpdateEvent[]>([]);
-  const [suggestUpdateDialogData, setSuggestUpdateDialogData] = useState<{
-    newVersion: string | undefined;
-    releaseNotes: string | undefined;
-  } | null>(null);
+  const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | null>(null);
   const [openUpdatingDialog, setOpenUpdatingDialog] = useState(false);
   const appUpdateResponse = useAppCheckUpdate();
   const availableUpdate: Update | null = appUpdateResponse.data ?? null;
+
+  const suggestUpdateDialogData = useMemo(() => {
+    if (appUpdateResponse.status !== 'success') return null;
+    if (!availableUpdate) return null;
+    if (dismissedUpdateVersion === availableUpdate.version) return null;
+    return {
+      newVersion: availableUpdate.version,
+      releaseNotes: availableUpdate.body,
+    };
+  }, [appUpdateResponse.status, availableUpdate, dismissedUpdateVersion]);
+
+  const dismissSuggestion = useCallback(() => {
+    setDismissedUpdateVersion(availableUpdate?.version ?? null);
+  }, [availableUpdate]);
 
   const onInstallConfirm = useCallback(async () => {
     if (!availableUpdate) {
@@ -69,19 +80,6 @@ export const AppUpdater: React.FC = () => {
     }
   }, [availableUpdate]);
 
-  useEffect(() => {
-    if (appUpdateResponse.status !== 'success') {
-      return;
-    }
-    if (!availableUpdate) {
-      return;
-    }
-    setSuggestUpdateDialogData({
-      newVersion: availableUpdate.version,
-      releaseNotes: availableUpdate.body,
-    });
-  }, [appUpdateResponse.status, availableUpdate]);
-
   const errorEvents = useMemo(
     () => events.filter((e): e is ErrorEvent => e.kind === 'error'),
     [events],
@@ -93,7 +91,7 @@ export const AppUpdater: React.FC = () => {
         open={!!suggestUpdateDialogData}
         onOpenChange={isOpen => {
           if (!isOpen) {
-            setSuggestUpdateDialogData(null);
+            dismissSuggestion();
           }
         }}
       >
@@ -122,14 +120,14 @@ export const AppUpdater: React.FC = () => {
             <div className='mt-4'>Would you like to install it now?</div>
           </div>
           <DialogFooter>
-            <Button variant='secondary' onClick={() => setSuggestUpdateDialogData(null)}>
+            <Button variant='secondary' onClick={dismissSuggestion}>
               Skip for now
             </Button>
             <Button
               autoFocus
               onClick={() => {
                 onInstallConfirm();
-                setSuggestUpdateDialogData(null);
+                dismissSuggestion();
                 setOpenUpdatingDialog(true);
               }}
             >

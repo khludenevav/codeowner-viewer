@@ -72,9 +72,15 @@ function ServerSection() {
   const enabled = appConfig.data?.mcp?.enabled ?? true;
 
   const [portInput, setPortInput] = useState<string>(String(configuredPort));
-  useEffect(() => {
+  const [lastConfiguredPort, setLastConfiguredPort] = useState<number>(configuredPort);
+  if (lastConfiguredPort !== configuredPort) {
+    // Reset the editable port input whenever the persisted config changes
+    // (e.g. after a successful "Apply"). This is the React docs' recommended
+    // pattern for resetting local state in response to a prop change without
+    // needing an effect.
+    setLastConfiguredPort(configuredPort);
     setPortInput(String(configuredPort));
-  }, [configuredPort]);
+  }
   const parsedPort = Number(portInput);
   const portValid = Number.isInteger(parsedPort) && parsedPort >= 1024 && parsedPort <= 65535;
   const portDirty = parsedPort !== configuredPort;

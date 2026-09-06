@@ -51,6 +51,9 @@ export const OwnersTree: React.FC<Props> = ({
     treeRef.current != null && scrollContainer != null
       ? treeRef.current.offsetTop - scrollContainer.offsetTop
       : 0;
+  // @tanstack/react-virtual returns non-memoizable functions, so the React
+  // Compiler intentionally skips this hook. This is expected here.
+  // oxlint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
     count: rows.length,
     estimateSize: () => 24,

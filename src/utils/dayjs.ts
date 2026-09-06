@@ -1,5 +1,3 @@
-/* oxlint-disable import/no-duplicates */
-// oxlint-disable-next-line no-restricted-imports
 import originalDayjs, { type Dayjs as DayjsOriginal } from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 import 'dayjs/plugin/advancedFormat';

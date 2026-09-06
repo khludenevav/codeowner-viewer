@@ -40,7 +40,7 @@ bundled as a native desktop app).
 ### Frontend
 
 - Language: TypeScript + React 18
-- Build tool: [Vite](https://vitejs.dev/) with `@vitejs/plugin-react-swc`
+- Build tool: [Vite](https://vitejs.dev/)
 - File-system router: [`@tanstack/react-router`](https://tanstack.com/router)
 - Server/cache state: [`@tanstack/react-query`](https://tanstack.com/query)
 - Virtualized lists: `@tanstack/react-virtual`
@@ -54,7 +54,7 @@ bundled as a native desktop app).
 - Theme switching: [`next-themes`](https://github.com/pacocoursey/next-themes)
 - Icons: [`lucide-react`](https://lucide.dev/) + `file-extension-icon-js`
 - Date formatting: [`dayjs`](https://day.js.org/)
-- Lint/format: ESLint, oxfmt
+- Lint/format: Oxlint, oxfmt
 
 ### Backend
 

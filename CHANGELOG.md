@@ -13,11 +13,10 @@ Release process:
 ## 0.17.1
 
 - "Error in restarting app automatically" on update is expected.
-- Updated internal tools.
+- Updated all dependencies versions.
 - Fixed update dialog scroll.
 
 ## 0.17.0
-
 
 - Branch changes: added an "Uncommitted changes" toggle (on by default) that merges the working-tree diff (staged + unstaged + untracked) into the list of changed files. The toggle is disabled visually when a non-HEAD branch is selected but the user's preference is preserved and re-applied automatically when HEAD is picked again.
 - MCP `get_codeowners`: response is now a compact DSL body (not JSON), with `responseMode` collapsed to `compact` (default) / `full`. Responses over 50 KB are truncated in-place with a `fullDumpPath:` header pointing at the untruncated dump. Log rows show response size. **Breaking:** the removed `responseMode: "normal"` value is no longer accepted.

@@ -1,0 +1,14 @@
+allowBuilds:
+  '@swc/core': true
+  core-js: true
+  core-js-pure: true
+  ejs: true
+  es5-ext: true
+  fsevents: true
+onlyBuiltDependencies:
+  - '@swc/core'
+  - core-js
+  - core-js-pure
+  - ejs
+  - es5-ext
+  - fsevents

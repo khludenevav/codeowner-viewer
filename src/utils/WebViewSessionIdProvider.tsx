@@ -21,7 +21,7 @@ export const WebViewSessionIdProvider: React.FC<{ children: React.ReactNode }> =
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
+// oxlint-disable-next-line react/only-export-components
 export function useWebViewSessionId() {
   const context = useContext(WebViewSessionIdContext);
   if (context === undefined) {

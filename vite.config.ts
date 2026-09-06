@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react-swc';
+import react from '@vitejs/plugin-react';
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
 import path from 'path';
 
@@ -34,7 +34,7 @@ export default defineConfig({
   ],
   build: {
     // Tauri uses Chromium on Windows and WebKit on macOS and Linux
-    target: process.env.TAURI_ENV_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
+    target: process.env.TAURI_ENV_PLATFORM == 'windows' ? 'chrome130' : 'safari17',
     // don't minify for debug builds
     minify: !process.env.TAURI_ENV_DEBUG,
     // produce sourcemaps for debug builds

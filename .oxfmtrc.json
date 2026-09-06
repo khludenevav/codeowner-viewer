@@ -8,5 +8,5 @@
   "jsxSingleQuote": true,
   "bracketSpacing": true,
   "sortPackageJson": false,
-  "ignorePatterns": []
+  "ignorePatterns": ["src/routeTree.gen.ts"]
 }

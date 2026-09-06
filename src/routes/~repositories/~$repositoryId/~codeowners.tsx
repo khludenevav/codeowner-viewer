@@ -100,8 +100,7 @@ function CodeownersRoute() {
 }
 
 function Codeowners({ repository }: { repository: Repositories }) {
-  const [branchOptions, setBranchOptions] = useState<ComboboxOption[]>([]);
-  const [selectedBranchOption, setSelectedBranchOption] =
+  const [persistedBranchOption, setSelectedBranchOption] =
     useRepositoryPageState<ComboboxOption | null>('codeowners.selectedBranchOption', null);
   const [ownerFilter, setOwnerFilter] = useRepositoryPageState<string>(
     'codeowners.ownerFilter',
@@ -129,6 +128,15 @@ function Codeowners({ repository }: { repository: Repositories }) {
 
   const branchesResponse = useBranches(repository);
   const updateBranchesList = useUpdateBranches(repository);
+
+  const { branches: branchOptions, headOption } = useMemo(
+    () =>
+      branchesResponse.status === 'success'
+        ? makeBranchOptions(branchesResponse.data)
+        : { branches: [] as ComboboxOption[], headOption: null as ComboboxOption | null },
+    [branchesResponse.data, branchesResponse.status],
+  );
+  const selectedBranchOption = persistedBranchOption ?? headOption;
 
   const normalizedSelectedBranch = selectedBranchOption?.value ?? null;
   const currentBranch = branchesResponse.data?.current ?? null;
@@ -180,21 +188,6 @@ function Codeowners({ repository }: { repository: Repositories }) {
     }, 300);
     return () => clearTimeout(timer);
   }, [fileFilter]);
-
-  useEffect(() => {
-    if (branchesResponse.status === 'success') {
-      const { branches, headOption } = makeBranchOptions(branchesResponse.data);
-      setBranchOptions(branches);
-      if (!selectedBranchOption) {
-        setSelectedBranchOption(headOption);
-      }
-    }
-  }, [
-    branchesResponse.data,
-    branchesResponse.status,
-    selectedBranchOption,
-    setSelectedBranchOption,
-  ]);
 
   return (
     <div className='flex flex-col mx-6 mb-6 max-h-full'>
