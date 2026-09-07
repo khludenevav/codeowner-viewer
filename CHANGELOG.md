@@ -10,9 +10,13 @@ Release process:
 - Use `## <version>` to start a new entry and `-` bullets for the notes.
 -->
 
-## 0.17.1
+## 0.17.2
 
 - "Error in restarting app automatically" on update is expected.
+- Now when Uncommited changes option enabled read CODEOWNERS from disk, not from git history.
+
+## 0.17.1
+
 - Updated all dependencies versions.
 - Fixed update dialog scroll.
 

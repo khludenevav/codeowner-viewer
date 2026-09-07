@@ -126,9 +126,11 @@ fn export_codeowners_for_branch(
  *
  * When `include_uncommitted` is true, working-tree changes (staged +
  * unstaged + untracked) are merged with the branch/main diff and
- * deduplicated. The UI only enables this toggle when the selected
- * branch matches HEAD, but the backend does not enforce that — callers
- * decide when it applies.
+ * deduplicated. In that mode we also read the CODEOWNERS file from the
+ * working tree so uncommitted edits to CODEOWNERS itself affect the
+ * ownership resolution. The UI only enables this toggle when the
+ * selected branch matches HEAD, but the backend does not enforce that
+ * — callers decide when it applies.
  */
 #[tauri::command(async)]
 fn get_changed_codeowners_for_branch(
@@ -136,7 +138,12 @@ fn get_changed_codeowners_for_branch(
     branch: &str,
     include_uncommitted: Option<bool>,
 ) -> String {
-    let codeowners_content = get_codeowners_content(abs_repo_path, branch);
+    let include_uncommitted = include_uncommitted.unwrap_or(false);
+    let codeowners_content = if include_uncommitted {
+        codeowners_engine::get_codeowners_content_working_tree(abs_repo_path, "CODEOWNERS")
+    } else {
+        get_codeowners_content(abs_repo_path, branch)
+    };
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     let branch_diff = get_branch_diff(abs_repo_path, branch);
 
@@ -151,7 +158,7 @@ fn get_changed_codeowners_for_branch(
             files.push(file_path.to_string());
         }
     }
-    if include_uncommitted.unwrap_or(false) {
+    if include_uncommitted {
         for file_path in codeowners_engine::get_working_tree_changed_files(abs_repo_path) {
             uncommitted_set.insert(file_path.clone());
             if seen.insert(file_path.clone()) {
@@ -216,13 +223,15 @@ fn get_joined_codeowners(
 ) -> Option<String> {
     match owners_vec {
         None => None,
-        Some(owners) => Some(
-            owners
-                .iter()
-                .map(|owner| format!("{owner}"))
-                .collect::<Vec<String>>()
-                .join(", "),
-        ),
+        Some(owners) => {
+            // Sort + dedupe so a rule listing "@a @b" and another listing
+            // "@b @a" collapse to the same group key. Owners of a single
+            // file are an unordered set semantically.
+            let mut names: Vec<String> = owners.iter().map(|owner| format!("{owner}")).collect();
+            names.sort();
+            names.dedup();
+            Some(names.join(", "))
+        }
     }
 }
 
