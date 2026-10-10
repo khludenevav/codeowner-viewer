@@ -95,6 +95,10 @@ pub fn on_startup(app: AppHandle) {
             return;
         }
     };
+    let app_for_log = app.clone();
+    log.set_on_append(move || {
+        let _ = app_for_log.emit("mcp-log-appended", ());
+    });
     if let Ok(mut guard) = runtime.log_store.write() {
         *guard = Some(log.clone());
     }
@@ -290,7 +294,8 @@ pub struct LogListResponse {
     pub retention_days: i64,
 }
 
-#[tauri::command]
+/// Async: reads the whole JSONL log, so keep it off the main thread.
+#[tauri::command(async)]
 pub fn mcp_log_list(
     args: LogListArgs,
     runtime: State<'_, McpRuntime>,

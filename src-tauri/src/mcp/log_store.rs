@@ -8,7 +8,7 @@ use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Mutex, OnceLock},
     time::Duration,
 };
 
@@ -51,17 +51,17 @@ pub enum LogStatus {
 }
 
 /// Thread-safe append-only writer + prune helper.
-#[derive(Debug)]
 pub struct McpLogStore {
     path: PathBuf,
     write_lock: Mutex<()>,
+    on_append: OnceLock<Box<dyn Fn() + Send + Sync>>,
 }
 
 impl McpLogStore {
     pub fn open(app_data_dir: &Path) -> anyhow::Result<Self> {
         std::fs::create_dir_all(app_data_dir).ok();
         let path = app_data_dir.join("mcp-log.jsonl");
-        let store = Self { path, write_lock: Mutex::new(()) };
+        let store = Self { path, write_lock: Mutex::new(()), on_append: OnceLock::new() };
         // Prune on open so the first UI read sees fresh data.
         let _ = store.prune();
         Ok(store)
@@ -73,6 +73,12 @@ impl McpLogStore {
 
     /// Append an entry. Any I/O error is swallowed after logging — log
     /// failures must not surface as tool failures.
+    /// Called after every successful append (the app emits
+    /// `mcp-log-appended` so the log view refreshes). Set once.
+    pub fn set_on_append(&self, f: impl Fn() + Send + Sync + 'static) {
+        let _ = self.on_append.set(Box::new(f));
+    }
+
     pub fn append(&self, entry: &McpLogEntry) {
         let _lock = match self.write_lock.lock() {
             Ok(g) => g,
@@ -96,7 +102,11 @@ impl McpLogStore {
                 return;
             }
         };
-        let _ = writeln!(file, "{}", json);
+        if writeln!(file, "{}", json).is_ok() {
+            if let Some(f) = self.on_append.get() {
+                f();
+            }
+        }
     }
 
     /// Return the most recent `limit` entries in reverse-chronological
@@ -210,4 +220,41 @@ pub fn spawn_daily_prune(
             }
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    fn entry() -> McpLogEntry {
+        McpLogEntry {
+            id: "1".into(),
+            timestamp: Utc::now(),
+            tool: "get_codeowners".into(),
+            request: serde_json::Value::Null,
+            response: serde_json::Value::Null,
+            duration_ms: 1,
+            status: LogStatus::Ok,
+            response_size_bytes: None,
+        }
+    }
+
+    #[test]
+    fn append_notifies_listener_and_persists() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let store = McpLogStore::open(dir.path()).unwrap();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let c = calls.clone();
+        store.set_on_append(move || {
+            c.fetch_add(1, Ordering::SeqCst);
+        });
+        store.append(&entry());
+        store.append(&entry());
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        assert_eq!(store.list(10, None).len(), 2);
+    }
 }
