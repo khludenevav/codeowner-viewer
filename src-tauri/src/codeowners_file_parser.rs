@@ -385,7 +385,8 @@ fn build_meta(
             let s = pattern.as_str();
             RuleMeta {
                 options: glob::MatchOptions {
-                    case_sensitive: false,
+                    // GitHub: "CODEOWNERS paths are case sensitive".
+                    case_sensitive: true,
                     require_literal_separator: s.contains('/'),
                     require_literal_leading_dot: false,
                 },
@@ -402,16 +403,16 @@ fn make_pattern(raw_path: &str) -> Pattern {
     }
     // Replaces "\["=>"[[]", "\]"=>"[]]". Ideally we should escape space also, but I hope no one will use spaces in paths.
     let path = ESCAPE_REGEX.replace_all(raw_path, "[$1]").into_owned();
-    // if pattern starts with anchor or explicit wild card, it should
-    // match any prefix
-    let prefixed = if path.starts_with('*') || path.starts_with('/') {
-        path.to_owned()
+    // gitignore rule (GitHub follows it): a `/` at the start or in the
+    // middle anchors the pattern to the repo root; otherwise it matches
+    // at any depth. A leading `*` already does (it crosses `/` when the
+    // pattern has no slash).
+    let anchored = path.trim_end_matches('/').contains('/');
+    let mut normalized = if anchored || path.starts_with('*') {
+        path.trim_start_matches('/').to_string()
     } else {
-        format!("**/{}", path)
+        format!("**/{path}")
     };
-    // if pattern starts with anchor it should only match paths
-    // relative to root
-    let mut normalized = prefixed.trim_start_matches('/').to_string();
     // if pattern ends with /, it should match children of that directory
     if normalized.ends_with('/') {
         normalized.push_str("**");
@@ -482,7 +483,7 @@ apps/ @octocat
         let expected_paths = vec![
             (Pattern::new("docs/**").unwrap(), vec![Owner::Username("@doctocat".into())], None),
             (Pattern::new("**/apps/**").unwrap(), vec![Owner::Username("@octocat".into())], None),
-            (Pattern::new("**/docs/*").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
+            (Pattern::new("docs/*").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
             (Pattern::new("build/logs/**").unwrap(), vec![Owner::Username("@doctocat".into())], None),
             (Pattern::new("*.go").unwrap(), vec![Owner::Email("docs@example.com".into())], None),
             (Pattern::new("*.js").unwrap(), vec![Owner::Username("@js-owner".into())], None),
@@ -570,22 +571,27 @@ apps/ @octocat
     }
 
     #[test]
-    fn owners_owns_unanchored_docs() {
+    fn middle_slash_anchors_pattern_to_root() {
         let owners = from_reader(EXAMPLE.as_bytes());
-        // docs anywhere
+        // `docs/*` has a slash in the middle → only root `docs/`
         assert_eq!(
-            owners.of("foo/docs/foo.js"),
-            Some(&vec![Owner::Email("docs@example.com".into())])
+            owners.of("docs/getting-started.md"),
+            Some(&vec![Owner::Username("@doctocat".into())])
         );
-        assert_eq!(
-            owners.of("foo/bar/docs/foo.js"),
-            Some(&vec![Owner::Email("docs@example.com".into())])
-        );
+        let anchored = from_reader("* @all\ndocs/* @docs\nsrc/legacy @old\n".as_bytes());
+        assert_eq!(anchored.of("docs/a.md"), Some(&vec![Owner::Username("@docs".into())]));
+        assert_eq!(anchored.of("foo/docs/a.md"), Some(&vec![Owner::Username("@all".into())]));
+        assert_eq!(anchored.of("src/legacy/a.rs"), Some(&vec![Owner::Username("@old".into())]));
+        assert_eq!(anchored.of("pkg/src/legacy/a.rs"), Some(&vec![Owner::Username("@all".into())]));
         // but not nested
-        assert_eq!(
-            owners.of("foo/bar/docs/foo/foo.js"),
-            Some(&vec![Owner::Username("@js-owner".into())])
-        )
+        assert_eq!(anchored.of("docs/sub/a.md"), Some(&vec![Owner::Username("@all".into())]));
+    }
+
+    #[test]
+    fn paths_are_case_sensitive() {
+        let owners = from_reader("* @all\n/Docs/ @docs\n".as_bytes());
+        assert_eq!(owners.of("Docs/a.md"), Some(&vec![Owner::Username("@docs".into())]));
+        assert_eq!(owners.of("docs/a.md"), Some(&vec![Owner::Username("@all".into())]));
     }
 
     #[test]
