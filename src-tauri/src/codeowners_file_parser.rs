@@ -294,6 +294,11 @@ impl Owners {
         ancestor_index
     }
 
+    /// Owners of rule index `i` in rule order (empty for out-of-range).
+    pub fn owners_at(&self, i: usize) -> &[Owner] {
+        self.paths.get(i).map_or(&[], |(_, owners, _)| owners.as_slice())
+    }
+
     /// Total number of rules parsed from the CODEOWNERS file.
     pub fn rule_count(&self) -> usize {
         self.paths.len()

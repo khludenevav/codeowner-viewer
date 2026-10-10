@@ -104,7 +104,7 @@ fn get_codeowners_for_branch_file(
     let codeowners_rel = codeowners_rel(&runtime, abs_repo_path);
     let codeowners_content = get_codeowners_content(abs_repo_path, branch, &codeowners_rel);
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
-    get_joined_codeowners(codeowners.of(file)).unwrap_or(String::from(""))
+    get_joined_codeowners(codeowners.of(file).map(Vec::as_slice)).unwrap_or(String::from(""))
 }
 
 /// Build the JSON `codeowners-export/v1` payload for the given repo +
@@ -192,7 +192,7 @@ fn get_changed_codeowners_for_branch(
         // MCP tool); the existing UI historically only surfaced
         // `#!…`-style directives, so we keep that filter here.
         let (owners_opt, comment_opt) = codeowners.of_with_comment(file_path);
-        let owner_team = get_joined_codeowners(owners_opt);
+        let owner_team = get_joined_codeowners(owners_opt.map(Vec::as_slice));
         let comment = comment_opt
             .filter(|s| s.starts_with("#!"))
             .map(|s| s.to_string());
@@ -241,9 +241,15 @@ fn codeowners_rel(runtime: &mcp_commands::McpRuntime, abs_repo_path: &str) -> St
         .unwrap_or_else(|| mcp::repo_resolver::default_codeowners_rel(Path::new(abs_repo_path)))
 }
 
-fn get_joined_codeowners(
-    owners_vec: Option<&Vec<codeowners_file_parser::Owner>>,
-) -> Option<String> {
+/// Per-rule group key for the tree view, in the same sorted form as
+/// [`get_joined_codeowners`] so both views group "@b @a" with "@a @b".
+fn sorted_owner_strings(codeowners: &codeowners_file_parser::Owners) -> Vec<String> {
+    (0..codeowners.rule_count())
+        .map(|i| get_joined_codeowners(Some(codeowners.owners_at(i))).unwrap_or_default())
+        .collect()
+}
+
+fn get_joined_codeowners(owners_vec: Option<&[codeowners_file_parser::Owner]>) -> Option<String> {
     match owners_vec {
         None => None,
         Some(owners) => {
@@ -302,7 +308,7 @@ fn get_all_codeowners_for_branch_struct(
     let codeowners_content = get_codeowners_content(abs_repo_path, branch, codeowners_rel);
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     let files = get_branch_files_vector(abs_repo_path, branch);
-    let owner_strings = codeowners.owner_strings();
+    let owner_strings = sorted_owner_strings(&codeowners);
     let files_total = files.len() as u32;
 
     // Emit `0 / total` **immediately** so the UI can leave its "0 / 0"
@@ -502,5 +508,18 @@ impl Serialize for DirectoryOwners {
         state.serialize_field("files", &self.files)?;
         state.serialize_field("owner", &self.owner)?;
         state.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tree_and_branch_views_use_same_sorted_owner_key() {
+        let codeowners = codeowners_file_parser::from_reader("/a/ @b @a\n/c/ @a @b @a\n".as_bytes());
+        assert_eq!(sorted_owner_strings(&codeowners), vec!["@a, @b", "@a, @b"]);
+        let (owners, _) = codeowners.of_with_comment("a/x.rs");
+        assert_eq!(get_joined_codeowners(owners.map(Vec::as_slice)).unwrap(), "@a, @b");
     }
 }
