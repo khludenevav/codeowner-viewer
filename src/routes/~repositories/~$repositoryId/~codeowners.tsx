@@ -159,8 +159,8 @@ function Codeowners({ repository }: { repository: Repositories }) {
       return branchCodeownersResponseData;
     }
 
-    const ownerRe = ownerFilterDebounced ? new RegExp(`.*${ownerFilterDebounced}.*`, 'i') : null;
-    const fileRe = fileFilterDebounced ? new RegExp(`.*${fileFilterDebounced}.*`, 'i') : null;
+    const ownerRe = ownerFilterDebounced ? toFilterRegExp(ownerFilterDebounced) : null;
+    const fileRe = fileFilterDebounced ? toFilterRegExp(fileFilterDebounced) : null;
 
     const result = new Map(
       Array.from(branchCodeownersResponseData.entries())
@@ -340,4 +340,13 @@ function Codeowners({ repository }: { repository: Repositories }) {
       )}
     </div>
   );
+}
+
+/** Regex when the input is a valid one, else a literal match: `c++` or `(` must not crash the page. */
+function toFilterRegExp(query: string): RegExp {
+  try {
+    return new RegExp(query, 'i');
+  } catch {
+    return new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  }
 }
