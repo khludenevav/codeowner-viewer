@@ -30,7 +30,13 @@ use std::{
     time::Instant,
 };
 
-use axum::Router;
+use axum::{
+    extract::Request,
+    http::{header, HeaderMap, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
+    Router,
+};
 use chrono::Utc;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -572,7 +578,9 @@ pub async fn start(
         StreamableHttpServerConfig::default(),
     );
 
-    let router = Router::new().nest_service("/mcp", service);
+    let router = Router::new()
+        .nest_service("/mcp", service)
+        .layer(middleware::from_fn(reject_non_local));
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
@@ -592,6 +600,42 @@ pub async fn start(
     })
 }
 
+/// Blocks DNS rebinding: a web page whose domain resolves to 127.0.0.1
+/// still sends its own name in `Host` and its own `Origin`.
+async fn reject_non_local(req: Request, next: Next) -> Response {
+    if is_local_request(req.headers()) {
+        next.run(req).await
+    } else {
+        StatusCode::FORBIDDEN.into_response()
+    }
+}
+
+fn is_local_request(headers: &HeaderMap) -> bool {
+    let host_ok = headers
+        .get(header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .is_some_and(is_loopback_authority);
+    // Agents (non-browser clients) send no Origin; browsers always do.
+    let origin_ok = match headers.get(header::ORIGIN) {
+        None => true,
+        Some(o) => o
+            .to_str()
+            .ok()
+            .and_then(|o| o.split_once("://"))
+            .is_some_and(|(_, authority)| is_loopback_authority(authority)),
+    };
+    host_ok && origin_ok
+}
+
+/// `authority` is `host[:port]`, e.g. `127.0.0.1:47821` or `[::1]:80`.
+fn is_loopback_authority(authority: &str) -> bool {
+    let host = match authority.rsplit_once(':') {
+        Some((h, port)) if port.chars().all(|c| c.is_ascii_digit()) => h,
+        _ => authority,
+    };
+    matches!(host, "127.0.0.1" | "localhost" | "[::1]")
+}
+
 fn gen_id() -> String {
     use rand::RngCore;
     let mut buf = [0u8; 12];
@@ -607,4 +651,51 @@ fn hex_encode(bytes: &[u8]) -> String {
         out.push(HEX[(b & 0x0f) as usize] as char);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn headers(pairs: &[(header::HeaderName, &str)]) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        for (k, v) in pairs {
+            h.insert(k.clone(), v.parse().unwrap());
+        }
+        h
+    }
+
+    #[test]
+    fn accepts_loopback_host_without_origin() {
+        assert!(is_local_request(&headers(&[(header::HOST, "127.0.0.1:47821")])));
+        assert!(is_local_request(&headers(&[(header::HOST, "localhost:47821")])));
+        assert!(is_local_request(&headers(&[(header::HOST, "[::1]:47821")])));
+    }
+
+    #[test]
+    fn accepts_loopback_origin() {
+        assert!(is_local_request(&headers(&[
+            (header::HOST, "127.0.0.1:47821"),
+            (header::ORIGIN, "http://localhost:1420"),
+        ])));
+    }
+
+    #[test]
+    fn rejects_rebound_host() {
+        assert!(!is_local_request(&headers(&[(header::HOST, "evil.com:47821")])));
+        assert!(!is_local_request(&headers(&[(header::HOST, "127.0.0.1.evil.com")])));
+        assert!(!is_local_request(&HeaderMap::new()));
+    }
+
+    #[test]
+    fn rejects_foreign_origin() {
+        assert!(!is_local_request(&headers(&[
+            (header::HOST, "127.0.0.1:47821"),
+            (header::ORIGIN, "https://evil.com"),
+        ])));
+        assert!(!is_local_request(&headers(&[
+            (header::HOST, "127.0.0.1:47821"),
+            (header::ORIGIN, "null"),
+        ])));
+    }
 }
