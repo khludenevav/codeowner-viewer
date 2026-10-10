@@ -150,51 +150,23 @@ pub fn run(
         &user_paths_for_depth,
     );
 
-    // ---- 5. Reserve a dump path up front. The size guard needs it in
-    //         the header if it fires; we only actually write the file
-    //         when truncation happened.
-    let dump_path_hint: Option<String> = dump_store.and_then(|s| {
-        // We can't know the exact filename before writing; but the
-        // header references a stable candidate. We generate the path
-        // (without touching disk) so both header and disk agree.
-        let candidate = candidate_dump_path(s);
-        candidate.to_str().map(|s| s.to_string())
-    });
+    // ---- 5. Pick the dump path up front: the size guard writes it into
+    //         the header, and the file is written to that same path.
+    let dump_path = dump_store.map(|s| s.new_path());
 
     let guarded = size_guard::apply(
         &mut tree,
         input.response_mode,
         DEFAULT_SIZE_LIMIT,
-        dump_path_hint.as_deref(),
+        dump_path.as_deref().and_then(|p| p.to_str()),
     );
 
-    let dump_path = if guarded.truncated {
-        if let (Some(store), Some(full)) = (dump_store, guarded.full_body.as_deref()) {
-            store.write(full)
-        } else {
-            None
-        }
-    } else {
-        None
+    let dump_path = match (guarded.truncated, dump_path, guarded.full_body.as_deref()) {
+        (true, Some(path), Some(full)) => std::fs::write(&path, full).ok().map(|_| path),
+        _ => None,
     };
 
-    // If the actual on-disk path differs from the hint (either the
-    // hint was picked before we knew whether the write would succeed,
-    // or the dump store wasn't provided), the header may still carry
-    // the hint. That's OK for the current UX — the hint always points
-    // to the dumps directory, and if the write failed the caller just
-    // gets a broken path pointer. We prefer that over paying a second
-    // serialization pass.
     Ok(RunOutput { body: guarded.body, truncated: guarded.truncated, dump_path })
-}
-
-fn candidate_dump_path(store: &DumpStore) -> std::path::PathBuf {
-    use rand::RngCore;
-    let mut buf = [0u8; 4];
-    rand::rng().fill_bytes(&mut buf);
-    let suffix: String = buf.iter().map(|b| format!("{:02x}", b)).collect();
-    let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
-    store.dir().join(format!("{ts}-{suffix}.txt"))
 }
 
 fn rev_exists(abs_repo_path: &str, rev: &str) -> bool {
@@ -267,6 +239,42 @@ mod tests {
     fn empty_store() -> Arc<AppConfigStore> {
         let tmp = TempDir::new().unwrap();
         Arc::new(AppConfigStore::from_dir(tmp.path()).unwrap())
+    }
+
+    #[test]
+    fn truncated_response_points_to_existing_dump() {
+        let repo = make_repo();
+        let root = std::path::Path::new(&repo.path);
+        let dir = root.join("big");
+        std::fs::create_dir_all(&dir).unwrap();
+        for i in 0..2000 {
+            std::fs::write(dir.join(format!("file_with_a_rather_long_name_{i:04}.txt")), "").unwrap();
+        }
+        run_git(root, &["add", "-A"]);
+        run_git(root, &["commit", "-q", "-m", "big"]);
+        let dumps = TempDir::new().unwrap();
+        let dump_store = Arc::new(DumpStore::open(dumps.path()));
+        let out = run(
+            &empty_store(),
+            Some(&dump_store),
+            GetCodeownersInput {
+                repo: repo.path.clone(),
+                for_scope: ForScope::Branch,
+                branch: None,
+                paths: Some(vec!["big".into()]),
+                response_mode: ResponseMode::Full,
+                max_depth: None,
+            },
+        )
+        .unwrap();
+        assert!(out.truncated);
+        let header_path = out
+            .body
+            .lines()
+            .find_map(|l| l.strip_prefix("fullDumpPath: "))
+            .expect("header has fullDumpPath");
+        assert!(std::path::Path::new(header_path).is_file(), "{header_path} missing");
+        assert_eq!(out.dump_path.as_deref(), Some(std::path::Path::new(header_path)));
     }
 
     #[test]

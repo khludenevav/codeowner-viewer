@@ -35,15 +35,9 @@ impl DumpStore {
         &self.dir
     }
 
-    /// Write `body` to a freshly minted file under the dump directory
-    /// and return the absolute path. On I/O error returns `None` — the
-    /// caller can still emit the response body, just without the
-    /// `fullDumpPath:` reference.
-    pub fn write(&self, body: &str) -> Option<PathBuf> {
-        let filename = new_filename();
-        let path = self.dir.join(filename);
-        fs::write(&path, body).ok()?;
-        Some(path)
+    /// Fresh, not-yet-written file path under the dump directory.
+    pub fn new_path(&self) -> PathBuf {
+        self.dir.join(new_filename())
     }
 
     /// Drop dump files older than `RETENTION_DAYS`.
@@ -87,11 +81,11 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn write_creates_file_with_body() {
+    fn new_path_is_unique_and_inside_dump_dir() {
         let dir = TempDir::new().unwrap();
         let store = DumpStore::open(dir.path());
-        let path = store.write("hello world").unwrap();
-        assert!(path.exists());
-        assert_eq!(fs::read_to_string(&path).unwrap(), "hello world");
+        let a = store.new_path();
+        assert_eq!(a.parent(), Some(store.dir()));
+        assert_ne!(a, store.new_path());
     }
 }
