@@ -1,10 +1,10 @@
 //! Resolve an absolute repo path into an effective repo config for MCP
 //! tool calls.
 //!
-//! If the path matches a configured repo, we use its (possibly custom)
-//! CODEOWNERS path; otherwise we synthesize a virtual repo with
-//! `CODEOWNERS` at the repo root — provided the path is actually a git
-//! repo (`git rev-parse --show-toplevel` succeeds).
+//! If the path matches a configured repo with a custom CODEOWNERS path,
+//! we use it; otherwise we look in GitHub's locations (see
+//! [`default_codeowners_rel`]) — provided the path is actually a git repo
+//! (`git rev-parse --show-toplevel` succeeds).
 
 use std::{
     path::{Path, PathBuf},
@@ -52,17 +52,32 @@ pub fn resolve(
     }
 
     Ok(ResolvedRepo {
+        codeowners_rel: default_codeowners_rel(&toplevel),
         abs_repo_path: toplevel,
-        codeowners_rel: "CODEOWNERS".to_string(),
         virtual_repo: true,
     })
 }
 
+/// GitHub's lookup order: the first file that exists wins.
+const DEFAULT_LOCATIONS: [&str; 3] = [".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"];
+
+/// shortcut: checks the working tree, not the requested branch; upgrade to
+/// `git cat-file -e <branch>:<path>` if branches move CODEOWNERS around.
+pub fn default_codeowners_rel(toplevel: &Path) -> String {
+    DEFAULT_LOCATIONS
+        .iter()
+        .find(|rel| toplevel.join(rel).is_file())
+        .unwrap_or(&"CODEOWNERS")
+        .to_string()
+}
+
 fn build_from_entry(toplevel: &Path, entry: &RepoEntry) -> ResolvedRepo {
-    let codeowners_rel = if entry.codeowners.trim().is_empty() {
-        "CODEOWNERS".to_string()
+    // The UI stores "CODEOWNERS" for every repo, so treat it as "default".
+    let custom = entry.codeowners.trim().trim_start_matches('/');
+    let codeowners_rel = if custom.is_empty() || custom == "CODEOWNERS" {
+        default_codeowners_rel(toplevel)
     } else {
-        entry.codeowners.trim_start_matches('/').to_string()
+        custom.to_string()
     };
     ResolvedRepo {
         abs_repo_path: toplevel.to_path_buf(),
@@ -86,5 +101,63 @@ fn git_toplevel(abs: &Path) -> Option<PathBuf> {
         None
     } else {
         Some(PathBuf::from(text))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn repo_with(files: &[&str]) -> TempDir {
+        let dir = TempDir::new().unwrap();
+        let ok = Command::new("git")
+            .current_dir(dir.path())
+            .args(["init", "-q"])
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+        for f in files {
+            let p = dir.path().join(f);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, "* @a\n").unwrap();
+        }
+        dir
+    }
+
+    fn resolve_rel(dir: &TempDir) -> String {
+        let store = AppConfigStore::from_dir(TempDir::new().unwrap().path()).unwrap();
+        resolve(&store, dir.path().to_str().unwrap()).unwrap().codeowners_rel
+    }
+
+    #[test]
+    fn finds_codeowners_in_github_dir() {
+        assert_eq!(resolve_rel(&repo_with(&[".github/CODEOWNERS"])), ".github/CODEOWNERS");
+        assert_eq!(resolve_rel(&repo_with(&["docs/CODEOWNERS"])), "docs/CODEOWNERS");
+    }
+
+    #[test]
+    fn github_dir_wins_over_root_like_on_github() {
+        let dir = repo_with(&["CODEOWNERS", ".github/CODEOWNERS"]);
+        assert_eq!(resolve_rel(&dir), ".github/CODEOWNERS");
+    }
+
+    #[test]
+    fn falls_back_to_root_when_none_exist() {
+        assert_eq!(resolve_rel(&repo_with(&[])), "CODEOWNERS");
+    }
+
+    #[test]
+    fn custom_configured_path_is_kept() {
+        let dir = repo_with(&[".github/CODEOWNERS"]);
+        let entry = RepoEntry {
+            id: String::new(),
+            repo_path: String::new(),
+            codeowners: "/teams/OWNERS".into(),
+        };
+        assert_eq!(build_from_entry(dir.path(), &entry).codeowners_rel, "teams/OWNERS");
+        let default_entry = RepoEntry { codeowners: "CODEOWNERS".into(), ..entry };
+        assert_eq!(build_from_entry(dir.path(), &default_entry).codeowners_rel, ".github/CODEOWNERS");
     }
 }

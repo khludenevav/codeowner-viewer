@@ -19,7 +19,7 @@ pub mod mcp;
 pub mod mcp_commands;
 use serde::ser::{SerializeStruct, Serializer};
 use serde::Serialize;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 extern crate pretty_assertions;
 
@@ -82,15 +82,27 @@ fn get_all_codeowners_for_branch(
     branch: &str,
     session_id: &str,
 ) -> String {
-    let all_owners =
-        get_all_codeowners_for_branch_struct(app_handle, abs_repo_path, branch, session_id);
+    let codeowners_rel = codeowners_rel(&app_handle.state(), abs_repo_path);
+    let all_owners = get_all_codeowners_for_branch_struct(
+        app_handle,
+        abs_repo_path,
+        branch,
+        &codeowners_rel,
+        session_id,
+    );
     serde_json::to_string(&all_owners).unwrap()
 }
 
 /** Returns comments for codeowners file of passed branch */
 #[tauri::command(async)]
-fn get_codeowners_for_branch_file(abs_repo_path: &str, branch: &str, file: &str) -> String {
-    let codeowners_content = get_codeowners_content(abs_repo_path, branch);
+fn get_codeowners_for_branch_file(
+    abs_repo_path: &str,
+    branch: &str,
+    file: &str,
+    runtime: tauri::State<'_, mcp_commands::McpRuntime>,
+) -> String {
+    let codeowners_rel = codeowners_rel(&runtime, abs_repo_path);
+    let codeowners_content = get_codeowners_content(abs_repo_path, branch, &codeowners_rel);
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     get_joined_codeowners(codeowners.of(file)).unwrap_or(String::from(""))
 }
@@ -137,12 +149,14 @@ fn get_changed_codeowners_for_branch(
     abs_repo_path: &str,
     branch: &str,
     include_uncommitted: Option<bool>,
+    runtime: tauri::State<'_, mcp_commands::McpRuntime>,
 ) -> String {
     let include_uncommitted = include_uncommitted.unwrap_or(false);
+    let codeowners_rel = codeowners_rel(&runtime, abs_repo_path);
     let codeowners_content = if include_uncommitted {
-        codeowners_engine::get_codeowners_content_working_tree(abs_repo_path, "CODEOWNERS")
+        codeowners_engine::get_codeowners_content_working_tree(abs_repo_path, &codeowners_rel)
     } else {
-        get_codeowners_content(abs_repo_path, branch)
+        get_codeowners_content(abs_repo_path, branch, &codeowners_rel)
     };
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     let branch_diff = get_branch_diff(abs_repo_path, branch);
@@ -214,8 +228,17 @@ fn get_branch_files_vector(abs_repo_path: &str, branch: &str) -> Vec<String> {
 }
 
 /** Returns comments for codeowners file of passed branch */
-fn get_codeowners_content(abs_repo_path: &str, branch: &str) -> String {
-    codeowners_engine::get_codeowners_content_at_ref(abs_repo_path, branch, "CODEOWNERS")
+fn get_codeowners_content(abs_repo_path: &str, branch: &str, codeowners_rel: &str) -> String {
+    codeowners_engine::get_codeowners_content_at_ref(abs_repo_path, branch, codeowners_rel)
+}
+
+/// Repo-relative CODEOWNERS path, resolved the same way as MCP and export.
+fn codeowners_rel(runtime: &mcp_commands::McpRuntime, abs_repo_path: &str) -> String {
+    runtime
+        .app_config_store()
+        .and_then(|store| mcp::repo_resolver::resolve(&store, abs_repo_path).ok())
+        .map(|repo| repo.codeowners_rel)
+        .unwrap_or_else(|| mcp::repo_resolver::default_codeowners_rel(Path::new(abs_repo_path)))
 }
 
 fn get_joined_codeowners(
@@ -273,9 +296,10 @@ fn get_all_codeowners_for_branch_struct(
     app_handle: tauri::AppHandle,
     abs_repo_path: &str,
     branch: &str,
+    codeowners_rel: &str,
     session_id: &str,
 ) -> DirectoryOwners {
-    let codeowners_content = get_codeowners_content(abs_repo_path, branch);
+    let codeowners_content = get_codeowners_content(abs_repo_path, branch, codeowners_rel);
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     let files = get_branch_files_vector(abs_repo_path, branch);
     let owner_strings = codeowners.owner_strings();
