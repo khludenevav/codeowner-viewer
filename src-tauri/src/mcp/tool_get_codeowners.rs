@@ -294,6 +294,45 @@ mod tests {
     }
 
     #[test]
+    fn directory_rule_without_trailing_slash_owns_nested_files() {
+        let repo = make_repo();
+        let path = std::path::Path::new(&repo.path);
+        std::fs::write(
+            path.join("CODEOWNERS"),
+            "/worker/connector_generator @team-gen\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(path.join("worker/connector_generator/src")).unwrap();
+        std::fs::write(path.join("worker/connector_generator/Dockerfile"), "").unwrap();
+        std::fs::write(path.join("worker/connector_generator/src/Main.java"), "").unwrap();
+        run_git(path, &["add", "-A"]);
+        run_git(path, &["commit", "-q", "-m", "dir rule"]);
+
+        let store = empty_store();
+        let out = run(
+            &store,
+            None,
+            GetCodeownersInput {
+                repo: repo.path.clone(),
+                for_scope: ForScope::Branch,
+                branch: None,
+                paths: Some(vec![
+                    "worker/connector_generator/Dockerfile".into(),
+                    "worker/connector_generator/src/Main.java".into(),
+                ]),
+                response_mode: ResponseMode::Full,
+                max_depth: None,
+            },
+        )
+        .unwrap();
+        let lines: Vec<&str> = out.body.lines().collect();
+        assert!(lines.contains(&" 1 @team-gen"), "{}", out.body);
+        assert!(lines.contains(&"Dockerfile 1"), "{}", out.body);
+        assert!(lines.contains(&" Main.java 1"), "{}", out.body);
+        assert!(!out.body.contains("(unowned)"), "{}", out.body);
+    }
+
+    #[test]
     fn branch_mode_compact_omits_files_matching_default() {
         let repo = make_repo();
         let store = empty_store();

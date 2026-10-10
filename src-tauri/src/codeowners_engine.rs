@@ -248,7 +248,15 @@ pub fn resolve_owners_batch(
             .iter()
             .map(|f| {
                 let path = Path::new(f);
-                let idx = codeowners.of_index_with_ancestor(path, None);
+                // Same ancestor walk as `build_ancestor_cache`, without the
+                // cache: rules like `/foo/bar` (no trailing `/`) only match
+                // the directory itself, so files under it rely on this.
+                let ancestor = path
+                    .ancestors()
+                    .skip(1)
+                    .filter_map(|d| codeowners.direct_match_index_at(d))
+                    .min();
+                let idx = codeowners.of_index_with_ancestor(path, ancestor);
                 to_resolution(codeowners, &owner_strings, idx)
             })
             .collect();
@@ -297,4 +305,54 @@ pub fn parse_and_resolve_batch(
 ) -> Vec<OwnerResolution> {
     let codeowners = codeowners_file_parser::from_reader(codeowners_content.as_bytes());
     resolve_owners_batch(&codeowners, files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const CODEOWNERS: &str = "\
+* @default
+/temporal/worker/connector_generator @team
+/temporal/worker/connector_generator/BUILD @other
+/automation/ @automation
+";
+
+    fn owners_of(files: &[String]) -> Vec<String> {
+        parse_and_resolve_batch(CODEOWNERS, files)
+            .into_iter()
+            .map(|r| r.owners)
+            .collect()
+    }
+
+    fn sample_files() -> Vec<String> {
+        [
+            "temporal/worker/connector_generator/Dockerfile_claude_code_worker",
+            "temporal/worker/connector_generator/src/com/Foo.java",
+            "temporal/worker/connector_generator/BUILD",
+            "automation/x/Dockerfile",
+            "README.md",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+    }
+
+    #[test]
+    fn small_batch_applies_directory_rule_without_trailing_slash() {
+        assert_eq!(
+            owners_of(&sample_files()),
+            vec!["@team", "@team", "@other", "@automation", "@default"]
+        );
+    }
+
+    #[test]
+    fn small_and_large_batches_agree() {
+        let small = sample_files();
+        let mut large = small.clone();
+        large.extend((0..40).map(|i| format!("pad/dir{i}/file.txt")));
+        assert!(large.len() >= 32);
+        let large_owners = owners_of(&large);
+        assert_eq!(owners_of(&small), large_owners[..small.len()]);
+    }
 }
