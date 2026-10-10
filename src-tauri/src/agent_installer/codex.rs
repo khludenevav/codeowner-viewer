@@ -1,6 +1,6 @@
 //! Codex CLI MCP install (~/.codex/config.toml).
 
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use toml_edit::{DocumentMut, Item, Table};
 
@@ -16,9 +16,7 @@ fn config_path() -> PathBuf {
 }
 
 fn read_or_empty() -> DocumentMut {
-    let path = config_path();
-    let text = fs::read_to_string(&path).unwrap_or_default();
-    text.parse::<DocumentMut>().unwrap_or_default()
+    common::read_toml(&config_path()).unwrap_or_default()
 }
 
 fn snippet(url: &str) -> String {
@@ -73,12 +71,12 @@ pub fn plan(url: &str) -> AgentInstallPlan {
 pub fn install(url: &str) -> anyhow::Result<AgentInstallPlan> {
     let file = config_path();
     let mut plan = plan(url);
+    let mut doc = common::read_toml(&file)?;
     let backup_path = if file.exists() {
         Some(common::backup(&file)?)
     } else {
         None
     };
-    let mut doc = read_or_empty();
 
     // Ensure top-level [mcp_servers] exists as a regular table.
     if doc.get("mcp_servers").is_none() {
@@ -106,8 +104,8 @@ pub fn uninstall() -> anyhow::Result<()> {
     if !file.exists() {
         return Ok(());
     }
+    let mut doc = common::read_toml(&file)?;
     let _ = common::backup(&file)?;
-    let mut doc = read_or_empty();
     if let Some(mcp_servers) = doc
         .get_mut("mcp_servers")
         .and_then(|i| i.as_table_mut())

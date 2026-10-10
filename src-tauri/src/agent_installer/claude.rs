@@ -1,6 +1,6 @@
 //! Claude Code MCP install (~/.claude.json).
 
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
@@ -16,12 +16,7 @@ fn config_path() -> PathBuf {
 }
 
 fn read_or_empty() -> Value {
-    let path = config_path();
-    let text = fs::read_to_string(&path).unwrap_or_default();
-    if text.trim().is_empty() {
-        return json!({});
-    }
-    serde_json::from_str(&text).unwrap_or_else(|_| json!({}))
+    common::read_json(&config_path()).unwrap_or_else(|_| json!({}))
 }
 
 fn snippet(url: &str) -> String {
@@ -72,15 +67,12 @@ pub fn plan(url: &str) -> AgentInstallPlan {
 pub fn install(url: &str) -> anyhow::Result<AgentInstallPlan> {
     let file = config_path();
     let mut plan = plan(url);
+    let mut cfg = common::read_json(&file)?;
     let backup_path = if file.exists() {
         Some(common::backup(&file)?)
     } else {
         None
     };
-    let mut cfg = read_or_empty();
-    if !cfg.is_object() {
-        cfg = json!({});
-    }
     let mcp_servers = cfg
         .as_object_mut()
         .unwrap()
@@ -106,8 +98,8 @@ pub fn uninstall() -> anyhow::Result<()> {
     if !file.exists() {
         return Ok(());
     }
+    let mut cfg = common::read_json(&file)?;
     let _ = common::backup(&file)?;
-    let mut cfg = read_or_empty();
     if let Some(mcp_servers) = cfg
         .as_object_mut()
         .and_then(|o| o.get_mut("mcpServers"))

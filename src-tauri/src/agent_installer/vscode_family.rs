@@ -1,7 +1,7 @@
 //! MCP install for VS Code-family editors (VS Code, Cursor, Windsurf).
 //! All use a user-scope `mcp.json` with the same shape.
 
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
@@ -37,11 +37,7 @@ fn config_path(agent: AgentKind) -> PathBuf {
 }
 
 fn read_or_empty(agent: AgentKind) -> Value {
-    let text = fs::read_to_string(config_path(agent)).unwrap_or_default();
-    if text.trim().is_empty() {
-        return json!({});
-    }
-    serde_json::from_str(&text).unwrap_or_else(|_| json!({}))
+    common::read_json(&config_path(agent)).unwrap_or_else(|_| json!({}))
 }
 
 fn snippet(url: &str) -> String {
@@ -98,15 +94,12 @@ pub fn plan(agent: AgentKind, url: &str) -> AgentInstallPlan {
 pub fn install(agent: AgentKind, url: &str) -> anyhow::Result<AgentInstallPlan> {
     let file = config_path(agent);
     let mut plan = plan(agent, url);
+    let mut cfg = common::read_json(&file)?;
     let backup_path = if file.exists() {
         Some(common::backup(&file)?)
     } else {
         None
     };
-    let mut cfg = read_or_empty(agent);
-    if !cfg.is_object() {
-        cfg = json!({});
-    }
     let servers = cfg
         .as_object_mut()
         .unwrap()
@@ -129,8 +122,8 @@ pub fn uninstall(agent: AgentKind) -> anyhow::Result<()> {
     if !file.exists() {
         return Ok(());
     }
+    let mut cfg = common::read_json(&file)?;
     let _ = common::backup(&file)?;
-    let mut cfg = read_or_empty(agent);
     if let Some(servers) = cfg
         .as_object_mut()
         .and_then(|o| o.get_mut("servers"))
