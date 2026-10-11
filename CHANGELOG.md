@@ -10,6 +10,10 @@ Release process:
 - Use `## <version>` to start a new entry and `-` bullets for the notes.
 -->
 
+## 0.17.3
+
+Fixed bug with tailing '/' on dirs. MCP now adds safer. Support for docs/CODEOWNERS, .github/CODEOWNERS
+
 ## 0.17.2
 
 - "Error in restarting app automatically" on update is expected.
